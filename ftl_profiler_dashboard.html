@@ -1,0 +1,533 @@
+<style>
+  body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #0a0e14;
+    color: #e6e8eb;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .tp-dashboard-container {
+    display: flex;
+    height: 100vh;
+    min-height: 100%;
+  }
+  .tp-sidebar {
+    width: 250px;
+    background: #10141b;
+    border-right: 2px solid #00d9ff33;
+    box-shadow: 2px 0 8px #00d9ff20;
+    padding: 32px 0 32px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+    position: relative;
+  }
+  .tp-sidebar-title {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #00d9ff;
+    letter-spacing: 1px;
+    margin-bottom: 30px;
+    text-shadow: 0 0 8px #00d9ff80;
+    user-select: none;
+  }
+  .tp-dump-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+  }
+  .tp-dump-item {
+    cursor: pointer;
+    padding: 14px 24px;
+    margin: 2px 0;
+    border-radius: 8px;
+    color: #e6e8eb;
+    transition: background 0.15s, color 0.15s;
+    font-size: 1em;
+    position: relative;
+    font-family: "JetBrains Mono", monospace;
+    letter-spacing: 0.5px;
+    border-left: 3px solid transparent;
+  }
+  .tp-dump-item.selected,
+  .tp-dump-item:hover {
+    background: #16202a;
+    color: #00d9ff;
+    border-left: 3px solid #00d9ff;
+    text-shadow: 0 0 6px #00d9ffbb;
+  }
+  .tp-main {
+    flex: 1;
+    padding: 36px 48px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .tp-header {
+    font-size: 2.2em;
+    font-weight: bold;
+    color: #ff6b35;
+    margin-bottom: 30px;
+    text-shadow: 0 0 15px #ff6b3555, 0 0 6px #ff6b3511;
+    font-family: "JetBrains Mono", monospace;
+    letter-spacing: 2px;
+  }
+  .tp-chart-section {
+    background: #10141b;
+    border-radius: 18px;
+    padding: 32px;
+    margin-bottom: 36px;
+    box-shadow: 0 0 0 2px #00d9ff22;
+    position: relative;
+    min-height: 330px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .tp-chart-label {
+    font-weight: bold;
+    font-size: 1.06em;
+    color: #00d9ff;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px #00d9ff33;
+  }
+  .tp-metric-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    grid-template-rows: repeat(2, 1fr);
+    gap: 28px 32px;
+    margin-bottom: 44px;
+    width: 100%;
+    max-width: 1050px;
+    align-self: center;
+  }
+  .tp-metric-card {
+    background: linear-gradient(100deg, #0a0e14 60%, #00d9ff0a 100%);
+    border-radius: 16px;
+    padding: 22px 28px 20px 28px;
+    color: #e6e8eb;
+    box-shadow: 0 0 11px #00d9ff17, 0 0 2px #00d9ff20;
+    border-bottom: 3px solid #ff6b35cc;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    transition: box-shadow 0.15s;
+    position: relative;
+    min-width: 175px;
+    min-height: 135px;
+  }
+  .tp-metric-label {
+    font-size: 1.06em;
+    letter-spacing: 0.4px;
+    color: #00d9ff;
+    margin-bottom: 7px;
+    font-weight: bold;
+    text-shadow: 0 0 4px #00d9ff22;
+    user-select: none;
+  }
+  .tp-metric-value {
+    font-size: 1.75em;
+    font-weight: bold;
+    color: #ff6b35;
+    letter-spacing: 1.3px;
+    text-shadow: 0 0 11px #ff6b3558;
+    margin-bottom: 7px;
+  }
+  .tp-metric-bar-bg {
+    width: 100%;
+    height: 10px;
+    background: #232b36;
+    border-radius: 6px;
+    margin-top: 8px;
+    margin-bottom: 9px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tp-metric-bar {
+    height: 100%;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #00d9ff, #ff6b35ee 90%);
+    box-shadow: 0 0 7px #00d9ff13, 0 0 7px #ff6b3588;
+    min-width: 7%;
+  }
+  .tp-metric-desc {
+    font-size: 0.96em;
+    color: #7abedf;
+    margin-top: 6px;
+    text-shadow: 0 0 6px #00d9ff12;
+    letter-spacing: 0.2px;
+    line-height: 1.41;
+    user-select: none;
+  }
+  .tp-metric-bar-bg--nonebar {
+    display: none;
+  }
+  .tp-analysis-section {
+    background: #10141b;
+    border-radius: 16px;
+    padding: 28px 34px;
+    box-shadow: 0 0 3px #00d9ff22;
+    color: #e6e8eb;
+    font-size: 1.14em;
+    margin-bottom: 18px;
+    line-height: 1.8;
+    font-family: "JetBrains Mono", monospace;
+    position: relative;
+  }
+  .tp-analysis-section .tp-analysis-title {
+    font-weight: bold;
+    font-size: 1.20em;
+    color: #ff6b35;
+    margin-bottom: 12px;
+    text-shadow: 0 0 7px #ff6b353b;
+  }
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    background: #192235;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #00d9ff55;
+    border-radius: 4px;
+  }
+  @media (max-width: 1200px) {
+    .tp-metric-cards-grid {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: repeat(3, 1fr);
+      max-width: 760px;
+    }
+  }
+  @media (max-width: 800px) {
+    .tp-metric-cards-grid {
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(6, 1fr);
+      max-width: 420px;
+      gap: 18px 0;
+    }
+    .tp-main {
+      padding: 24px 4vw;
+    }
+  }
+</style>
+
+<div class="tp-dashboard-container">
+  <!-- Sidebar -->
+  <aside class="tp-sidebar">
+    <div class="tp-sidebar-title">
+      TP Dump Files
+    </div>
+    <ul class="tp-dump-list" id="tp-dump-list">
+      <!-- Dump file items -->
+      <li class="tp-dump-item selected" data-dump="tp_dump_001.bin">tp_dump_001.bin</li>
+      <li class="tp-dump-item" data-dump="tp_dump_002.bin">tp_dump_002.bin</li>
+      <li class="tp-dump-item" data-dump="tp_dump_003.bin">tp_dump_003.bin</li>
+      <li class="tp-dump-item" data-dump="tp_dump_004.bin">tp_dump_004.bin</li>
+      <li class="tp-dump-item" data-dump="tp_dump_005.bin">tp_dump_005.bin</li>
+      <li class="tp-dump-item" data-dump="tp_dump_006.bin">tp_dump_006.bin</li>
+      <li class="tp-dump-item" data-dump="tp_dump_007.bin">tp_dump_007.bin</li>
+      <li class="tp-dump-item" data-dump="tp_dump_008.bin">tp_dump_008.bin</li>
+      <li class="tp-dump-item" data-dump="tp_dump_009.bin">tp_dump_009.bin</li>
+      <li class="tp-dump-item" data-dump="tp_dump_010.bin">tp_dump_010.bin</li>
+    </ul>
+  </aside>
+  <!-- Main Content -->
+  <main class="tp-main">
+    <div class="tp-header">
+      FTL Performance Analysis
+    </div>
+    <!-- Expanded Metric Cards Grid -->
+    <div class="tp-metric-cards-grid" id="tp-metric-cards-grid">
+      <!-- GC Efficiency -->
+      <div class="tp-metric-card" id="tp-card-gc">
+        <span class="tp-metric-label">GC Efficiency</span>
+        <span class="tp-metric-value" id="metric-gc-eff">89.2%</span>
+        <div class="tp-metric-bar-bg">
+          <div class="tp-metric-bar" id="bar-gc" style="width:89.2%"></div>
+        </div>
+        <div class="tp-metric-desc">
+          <span>효율적 GC 비율 (Garbage Collection의 성공적 처리율)</span>
+        </div>
+      </div>
+      <!-- WAF -->
+      <div class="tp-metric-card" id="tp-card-waf">
+        <span class="tp-metric-label">WAF</span>
+        <span class="tp-metric-value" id="metric-waf">2.15</span>
+        <div class="tp-metric-bar-bg">
+          <div class="tp-metric-bar" id="bar-waf" style="width:61%"></div>
+        </div>
+        <div class="tp-metric-desc">
+          <span>Write Amplification Factor<br>1에 가까울수록 효율적</span>
+        </div>
+      </div>
+      <!-- L2P Cache Hit Rate -->
+      <div class="tp-metric-card" id="tp-card-l2p-hit">
+        <span class="tp-metric-label">L2P Cache Hit Rate</span>
+        <span class="tp-metric-value" id="metric-l2p-hit">91.3%</span>
+        <div class="tp-metric-bar-bg">
+          <div class="tp-metric-bar" id="bar-l2p-hit" style="width:91.3%"></div>
+        </div>
+        <div class="tp-metric-desc">
+          <span>L2P(L2P 주소 변환) 캐시 적중률</span>
+        </div>
+      </div>
+      <!-- Buffer Usage -->
+      <div class="tp-metric-card" id="tp-card-buffer">
+        <span class="tp-metric-label">Buffer Usage</span>
+        <span class="tp-metric-value" id="metric-buffer">76.2%</span>
+        <div class="tp-metric-bar-bg">
+          <div class="tp-metric-bar" id="bar-buffer" style="width:76.2%"></div>
+        </div>
+        <div class="tp-metric-desc">
+          <span>FTL 내부 임시 버퍼 활용률</span>
+        </div>
+      </div>
+      <!-- Core Balance -->
+      <div class="tp-metric-card" id="tp-card-core">
+        <span class="tp-metric-label">Core Balance</span>
+        <span class="tp-metric-value" id="metric-core">84.1%</span>
+        <div class="tp-metric-bar-bg">
+          <div class="tp-metric-bar" id="bar-core" style="width:84.1%"></div>
+        </div>
+        <div class="tp-metric-desc">
+          <span>코어별 I/O 분배 균형 지표</span>
+        </div>
+      </div>
+      <!-- Free Blocks -->
+      <div class="tp-metric-card" id="tp-card-free-block">
+        <span class="tp-metric-label">Free Blocks</span>
+        <span class="tp-metric-value" id="metric-free-block">106</span>
+        <div class="tp-metric-bar-bg">
+          <div class="tp-metric-bar" id="bar-free-block" style="width:70%"></div>
+        </div>
+        <div class="tp-metric-desc">
+          <span>남은 Free 블록 개수<br>(80 미만 경고, 150 이상 충분)</span>
+        </div>
+      </div>
+    </div>
+    <!-- Timeline Chart -->
+    <section class="tp-chart-section">
+      <div class="tp-chart-label">Performance Timeline</div>
+      <canvas id="tp-timeline-chart" height="120"></canvas>
+      <div style="margin-top:20px; width:100%; display: flex; flex-wrap: wrap; gap:18px 36px;">
+        <div style="font-size:1.03em;">
+          <span style="color:#00d9ff;font-weight:bold;">Erase Cnt Var:</span>
+          <span id="metric-erase-var" style="color:#ff6b35; font-weight:bold;">293</span>
+          <span style="color:#7abedf; font-size:0.98em;"> (Erase Count Variance)</span>
+        </div>
+        <div style="font-size:1.03em;">
+          <span style="color:#00d9ff;font-weight:bold;">Read Latency:</span>
+          <span id="metric-read-lat" style="color:#ff6b35; font-weight:bold;">157</span>
+          <span style="color:#7abedf; font-size:0.98em;">us</span>
+        </div>
+        <div style="font-size:1.03em;">
+          <span style="color:#00d9ff;font-weight:bold;">Write Latency:</span>
+          <span id="metric-write-lat" style="color:#ff6b35; font-weight:bold;">932</span>
+          <span style="color:#7abedf; font-size:0.98em;">us</span>
+        </div>
+      </div>
+    </section>
+    <!-- AI Analysis Section -->
+    <section class="tp-analysis-section" id="tp-analysis-section">
+      <div class="tp-analysis-title">AI Analysis Result</div>
+      <div id="tp-ai-analysis-text">
+        GC가 매우 효율적으로 수행되고 있으며, Buffer 사용률은 적정 수준으로 보입니다.<br>
+        Core 작업 분배가 균형 있게 이루어지고 있습니다.<br>
+        Free Block, WAF, L2P 캐시 적중률 등 각종 세부 지표도 양호합니다.<br>
+        급격한 성능 저하나 위험 신호 없음.
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // 범위 기반으로 랜덤을 고정 seed 비슷하게 (by dump index)
+  function genMockFTLFields(idx) {
+    function f(min, max, decimals=2, bias=0.5) {
+      // bias: for a bit more variation per idx
+      const r = ((Math.sin(idx*1.53+decimals*2.42)+1)/2)*bias + ((Math.cos(idx*0.6+decimals*2.3)+1)/2)*(1-bias);
+      const v = min + (max-min)*r;
+      return +v.toFixed(decimals);
+    }
+    // Slight temporal appearance by idx
+    return {
+      waf:        +(1.5 + ((idx*0.23+Math.sin(idx*1.37))%2)).toFixed(2),                            // 1.5~3.5
+      l2p_hit:    +(0.89 - (idx%4)*0.017 + Math.sin(idx*0.22)*0.014).toFixed(3),                    // 0.7~0.95 (mostly upper)
+      gc_eff:     +(0.80 - 0.09*(idx%4) + Math.cos(idx*0.28)*0.02).toFixed(3),                      // 0.6~0.9
+      erase_var:  Math.floor(280 + 110*Math.abs(Math.sin(idx*1.77))),
+      free_block: Math.floor(135 - 21*(idx%3) + (Math.cos(idx*0.52)*15)),
+      buffer:     +(0.73 + 0.17*Math.abs(Math.cos(idx*1.3))).toFixed(3),                            // 0.7~0.90
+      core_bal:   +(0.78 + 0.13*(Math.cos(idx*0.85))).toFixed(3),                                   // 0.6~0.9
+      read_lat:   Math.round(110 + Math.abs(Math.sin(idx*1.5))*110),                                // 100~300
+      write_lat:  Math.round(750 + Math.abs(Math.cos(idx*1.13))*390)                                // 500~1200
+    }
+  }
+  // Mock data for 50 timestamps (8ms intervals)
+  function generateMockTimelineData(i) {
+    // Just for demo: load a different but repeatable pattern by index
+    let data = [];
+    let base = 100 + 5*(i%3), amp = 8 + i%5, noise = 0.6 + 0.12*i;
+    for(let t=0; t<50; ++t) {
+      let trend = Math.sin(t*0.11+0.4*i)*amp+base+Math.sin(i/7+t*0.025)*4;
+      let v = Math.round(trend + (Math.random()-0.5)*noise*6);
+      data.push(v);
+    }
+    return data;
+  }
+  function getMetricSet(i) {
+    // FTL 특화 mock 메트릭 6개 (GC, WAF, L2P, Buffer, Core, FreeBlock)
+    const ftl = genMockFTLFields(i);
+    return [
+      // GC Efficiency
+      {
+        v: (ftl.gc_eff*100).toFixed(1), bar: (ftl.gc_eff*100), show_percent: true,
+      },
+      // WAF
+      {
+        v: ftl.waf.toFixed(2), 
+        bar: Math.max(10, (3.5-ftl.waf)/(3.5-1.5)*100),    // 낮을수록 좋으므로 1.5->100, 3.5->0%
+        show_percent: false,
+      },
+      // L2P Hit rate
+      {
+        v: (ftl.l2p_hit*100).toFixed(1), bar: ftl.l2p_hit*100, show_percent: true,
+      },
+      // Buffer Usage
+      {
+        v: (ftl.buffer*100).toFixed(1), bar: ftl.buffer*100, show_percent: true,
+      },
+      // Core Balance
+      {
+        v: (ftl.core_bal*100).toFixed(1), bar: ftl.core_bal*100, show_percent: true,
+      },
+      // Free Blocks
+      {
+        v: ftl.free_block.toString(), 
+        bar: Math.max(10, Math.min(100, (ftl.free_block-80)/(150-80)*100) ),
+        show_percent: false,
+      }
+    ];
+  }
+  function getExtraFTLFields(i) {
+    // For performance quick stats below the chart
+    const ftl = genMockFTLFields(i);
+    return {
+      erase_var: ftl.erase_var,
+      read_lat: ftl.read_lat,
+      write_lat: ftl.write_lat
+    }
+  }
+  function getAnalysisText(i) {
+    // Extended for new metric inclusion
+    const messages = [
+      "GC가 매우 효율적으로 수행되고 있으며, Buffer 사용률은 적정 수준으로 보입니다.<br>Core 작업 분배가 균형 있게 이루어지고 있습니다.<br>Free Block, WAF, L2P 캐시 적중률 등 각종 세부 지표도 양호합니다.<br>급격한 성능 저하나 위험 신호 없음.",
+      "Buffer 사용률이 꾸준히 상승하지만 GC 효율 및 L2P 캐시 적중률이 정상입니다.<br>일부 dump에서 Write Amplification이 다소 높아 주기적 모니터링 권장.",
+      "GC 효율이 하락 경향을 보이나, Free Block과 L2P 캐시율은 안정적입니다.<br>Erase Count Variance가 중간 수준, 위험 신호 없음.",
+      "WAF가 낮게 잘 유지되고 처리 latency도 정상범위로 나타납니다. Buffer 및 Core balance도 양호.",
+      "일부 구간 GC efficiency가 급락했으나 L2P hit과 Free Block 상태는 정상.<br>Write Latency 일시적 상승 감지.",
+      "Erase Count Variance(Erase Cycle 분산)이 소폭 커져있으나 성능 영향은 미미함.<br>전체적으로 지표 균형 유지.",
+      "Buffer, Core, GC 모두 안정적으로 관리, WAF 개선분 확인됨.<br>Free Block이 넉넉해 안정적인 동작 보장.",
+      "L2P cache hit이 다소 낮은 시점이 있었으나 빠르게 회복함.<br>Read/Write latency 계단형 변화 관찰됨.",
+      "Free Block 개수 경고 임계 근접.<br>Buffer 성능 및 latency 특이 변화 없음.",
+      "모든 주요 FTL 메트릭 건강, 이상 징후 없음."
+    ];
+    return messages[i % messages.length];
+  }
+
+  // Initial render with "tp_dump_001.bin"
+  let currentIdx = 0;
+
+  function renderDashboard(idx) {
+    // Timeline
+    const ctx = document.getElementById('tp-timeline-chart').getContext('2d');
+    const timelineData = generateMockTimelineData(idx);
+    const labels = Array.from({length: 50}, (_, i) => `${i*8}ms`);
+    if(window.tpTimelineChart) window.tpTimelineChart.destroy();
+    window.tpTimelineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'IOPS',
+          data: timelineData,
+          borderColor: '#00d9ff',
+          backgroundColor: 'rgba(0,217,255,0.10)',
+          pointRadius: 2,
+          pointBackgroundColor: '#ff6b35',
+          borderWidth: 3,
+          tension: 0.28
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: "#0a0e14ee",
+            borderColor: "#00d9ff88"
+          }
+        },
+        scales: {
+          x: {
+            grid: {color: "#222a34", drawTicks: false},
+            ticks: {color: "#7abedf", font: {family: "JetBrains Mono", size: 12}},
+          },
+          y: {
+            grid: {color: "#182028", lineWidth: 1.5},
+            ticks: {color: "#7abedf", font: {family: "JetBrains Mono", size: 13}},
+            beginAtZero: false
+          }
+        }
+      }
+    });
+    // Metrics
+    const metrics = getMetricSet(idx);
+    // 1. GC Efficiency
+    document.getElementById('metric-gc-eff').innerText = metrics[0].v + '%';
+    document.getElementById('bar-gc').style.width = metrics[0].bar + '%';
+    // 2. WAF
+    document.getElementById('metric-waf').innerText = metrics[1].v;
+    document.getElementById('bar-waf').style.width = metrics[1].bar + '%';
+    // 3. L2P Cache Hit Rate
+    document.getElementById('metric-l2p-hit').innerText = metrics[2].v + '%';
+    document.getElementById('bar-l2p-hit').style.width = metrics[2].bar + '%';
+    // 4. Buffer Usage
+    document.getElementById('metric-buffer').innerText = metrics[3].v + '%';
+    document.getElementById('bar-buffer').style.width = metrics[3].bar + '%';
+    // 5. Core Balance
+    document.getElementById('metric-core').innerText = metrics[4].v + '%';
+    document.getElementById('bar-core').style.width = metrics[4].bar + '%';
+    // 6. Free Blocks
+    document.getElementById('metric-free-block').innerText = metrics[5].v;
+    document.getElementById('bar-free-block').style.width = metrics[5].bar + '%';
+    // Extra FTL single values below the chart
+    const extra = getExtraFTLFields(idx);
+    document.getElementById('metric-erase-var').innerText = extra.erase_var;
+    document.getElementById('metric-read-lat').innerText = extra.read_lat;
+    document.getElementById('metric-write-lat').innerText = extra.write_lat;
+    // AI Analysis
+    document.getElementById('tp-ai-analysis-text').innerHTML = getAnalysisText(idx);
+  }
+
+  // Sidebar click selection logic
+  document.getElementById('tp-dump-list').addEventListener('click', function(e) {
+    let li = e.target.closest('.tp-dump-item');
+    if(!li) return;
+    [...this.children].forEach(child => child.classList.remove('selected'));
+    li.classList.add('selected');
+    let idx = Array.from(this.children).indexOf(li);
+    currentIdx = idx; // update global
+    renderDashboard(idx);
+  });
+
+  // Initial render
+  renderDashboard(0);
+</script>
+
