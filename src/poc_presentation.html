@@ -306,30 +306,42 @@
             <div class="author">FTL Engineering Team</div>
         </div>
 
-        <!-- Slide 2: Problem Statement -->
+        <!-- Slide 2: Core Concept -->
         <div class="slide">
             <div class="slide-content">
-                <h2>❌ 현재 문제점</h2>
+                <h2>💡 핵심 컨셉: AI = 생산성 가속기</h2>
                 <div class="problem-solution">
                     <div class="problem">
-                        <h3 style="color: #ff4466;">Before</h3>
+                        <h3 style="color: #ff4466;">수작업 (7일)</h3>
                         <ul class="feature-list">
-                            <li style="border-color: rgba(255, 68, 102, 0.2);">Windows XML/DLL 툴 (Linux 부적합)</li>
-                            <li style="border-color: rgba(255, 68, 102, 0.2);">WLG 벤치마크 2-7일 소요</li>
-                            <li style="border-color: rgba(255, 68, 102, 0.2);">실시간 모니터링 불가</li>
-                            <li style="border-color: rgba(255, 68, 102, 0.2);">파워 최적화 방법 불명확</li>
+                            <li style="border-color: rgba(255, 68, 102, 0.2);">FIO 스크립트 직접 작성</li>
+                            <li style="border-color: rgba(255, 68, 102, 0.2);">파워 모델링 수식 유도</li>
+                            <li style="border-color: rgba(255, 68, 102, 0.2);">대시보드 HTML/CSS/JS 코딩</li>
+                            <li style="border-color: rgba(255, 68, 102, 0.2);">테스트 케이스 일일이 작성</li>
                         </ul>
+                        <div style="text-align: center; margin-top: 1.5rem;">
+                            <div class="stat-value" style="font-size: 2rem; color: #ff4466;">7일</div>
+                            <div class="stat-label">개발 시간 (예상)</div>
+                        </div>
                     </div>
                     <div class="arrow">→</div>
                     <div class="solution">
-                        <h3>After (PoC)</h3>
+                        <h3>AI 활용 (1-2일)</h3>
                         <ul class="feature-list">
-                            <li>Python + fio (Linux 네이티브)</li>
-                            <li>실시간 대시보드</li>
-                            <li>라이브 IOPS/Power 모니터링</li>
-                            <li>AI 기반 최적화 제안</li>
+                            <li>AI가 FIO 생성 로직 자동 작성</li>
+                            <li>AI가 sklearn 모델 코드 생성</li>
+                            <li>AI가 실시간 대시보드 구현</li>
+                            <li>AI가 TDD 테스트 먼저 작성</li>
                         </ul>
+                        <div style="text-align: center; margin-top: 1.5rem;">
+                            <div class="stat-value" style="font-size: 2rem; color: #00ff88;">1-2일</div>
+                            <div class="stat-label">실제 소요 시간</div>
+                        </div>
                     </div>
+                </div>
+                <div class="code-block" style="margin-top: 2rem; text-align: center;">
+                    <span class="highlight">🎯 결론:</span> 우리가 못하는 게 아니라, <span style="color: #00d9ff;">시간이 없어서 못했던
+                        것</span>을 AI로 빠르게 구현
                 </div>
             </div>
         </div>
@@ -522,40 +534,51 @@
         <!-- Slide 8: PoC Value -->
         <div class="slide">
             <div class="slide-content">
-                <h2>✨ PoC 가치</h2>
+                <h2>✨ PoC 가치: 지속 활용 가능한 툴 확보</h2>
                 <div class="stats">
                     <div class="stat-card">
-                        <div class="stat-value">2-7일</div>
-                        <div class="stat-label">→ 실시간</div>
+                        <div class="stat-value">7일</div>
+                        <div class="stat-label">→ 1-2일</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">11W</div>
-                        <div class="stat-label">WLG 타겟</div>
+                        <div class="stat-value">재사용</div>
+                        <div class="stat-label">가능한 툴</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-value">100%</div>
-                        <div class="stat-label">추상화</div>
+                        <div class="stat-value">지속</div>
+                        <div class="stat-label">활용 가능</div>
                     </div>
                 </div>
 
                 <h3 style="margin-top: 2rem;">핵심 성과</h3>
                 <div class="two-column">
                     <div class="card">
-                        <h3 style="font-size: 1.2rem;">🎯 기술 검증</h3>
+                        <h3 style="font-size: 1.2rem;">⚡ AI = 생산성 부스터</h3>
                         <ul class="feature-list">
-                            <li>AI 기반 파워 모델링 가능성 증명</li>
-                            <li>Linux 환경 실시간 모니터링 구현</li>
-                            <li>보안 준수하며 외부 도구 활용</li>
+                            <li><span class="highlight">엔지니어 역량</span> 그대로 유지</li>
+                            <li><span class="highlight">개발 시간</span> 7배 단축</li>
+                            <li><span class="highlight">코드 품질</span> TDD로 검증</li>
+                            <li>수작업 대비 <span class="highlight">빠른 프로토타입</span></li>
                         </ul>
                     </div>
                     <div class="card">
-                        <h3 style="font-size: 1.2rem;">📈 실용성</h3>
+                        <h3 style="font-size: 1.2rem;">🔄 재사용 가능한 결과물</h3>
                         <ul class="feature-list">
-                            <li>구체적인 최적화 제안</li>
-                            <li>직관적인 시각화</li>
-                            <li>프로덕션 통합 준비 완료</li>
+                            <li>프로덕션 배포 가능한 품질</li>
+                            <li>내부 환경에 바로 적용 가능</li>
+                            <li>향후 다른 제품에도 활용</li>
+                            <li>파워 모델 지속 업데이트 가능</li>
                         </ul>
                     </div>
+                </div>
+
+                <div class="code-block" style="margin-top: 2rem;">
+                    <span class="highlight">💡 인사이트:</span>
+                    "AI 코딩 도구는 우리가 <span style="color: #ff4466;">못하는 걸 대신</span>하는 게 아니라,
+                    우리가 <span style="color: #00ff88;">할 수 있지만 시간 없던 것</span>을 빠르게 가능하게 함"
+
+                    <span style="color: #7a8ba0;">→ 기존: 파워 모델링 7일 소요 예상 → 포기</span>
+                    <span style="color: #00d9ff;">→ PoC: AI 활용해서 1-2일 만에 완성 → 실제 활용 가능한 툴 확보</span>
                 </div>
             </div>
         </div>
