@@ -1,0 +1,73 @@
+{
+    "profile_id": 1,
+    "profile_name": "E1.L_Profile1",
+    "power_limit_watts": 11,
+    "precondition": "sustain",
+    "runtime_hours": 168,
+    "read_patterns": [
+        {
+            "block_size": "4k",
+            "percentage": 58,
+            "qos_requirements": {
+                "p50_ms": 0.3,
+                "p99_ms": 0.8,
+                "p99.9_ms": 1.5,
+                "p99.99_ms": 5.0,
+                "p99.999_ms": 7.0
+            }
+        },
+        {
+            "block_size": "8k",
+            "percentage": 39,
+            "qos_requirements": {
+                "p50_ms": 0.3,
+                "p99_ms": 0.8,
+                "p99.9_ms": 1.5,
+                "p99.99_ms": 5.0,
+                "p99.999_ms": 7.0
+            }
+        },
+        {
+            "block_size": "256k",
+            "percentage": 3,
+            "qos_requirements": {
+                "p50_ms": 1.7,
+                "p99_ms": 2.8,
+                "p99.9_ms": 3.3,
+                "p99.99_ms": 5.0,
+                "p99.999_ms": 7.0
+            }
+        }
+    ],
+    "write_patterns": [
+        {
+            "block_size": "4k",
+            "percentage": 65
+        },
+        {
+            "block_size": "40k",
+            "percentage": 35
+        }
+    ],
+    "throughput_targets": {
+        "16TB": {
+            "read_total_mbps": 300,
+            "write_4k_mbps": 16,
+            "write_40k_mbps": 80
+        },
+        "32TB": {
+            "read_total_mbps": 400,
+            "write_4k_mbps": 32,
+            "write_40k_mbps": 160
+        },
+        "64TB": {
+            "read_total_mbps": 700,
+            "write_4k_mbps": 64,
+            "write_40k_mbps": 320
+        }
+    },
+    "test_environment": {
+        "mount_point": "/mnt/wlg_test",
+        "test_file": "testfile.dat"
+    }
+}
