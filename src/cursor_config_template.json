@@ -1,0 +1,122 @@
+{
+    "_comment": "========== TP Dump 포맷 정의 파일 ==========",
+    "_usage": "이 파일을 내부 포맷에 맞게 수정하세요",
+    
+    "endian": "little",
+    "header_size": 64,
+    "record_size": 128,
+    
+    "fields": [
+        {
+            "name": "timestamp_ms",
+            "type": "uint64",
+            "offset": 0,
+            "description": "타임스탬프 (밀리초)"
+        },
+        {
+            "name": "task_id",
+            "type": "uint32",
+            "offset": 8,
+            "description": "Task ID"
+        },
+        {
+            "name": "qcc_count",
+            "type": "uint32",
+            "offset": 12,
+            "description": "QCC 패킷 수 (컨트롤러↔코어)"
+        },
+        {
+            "name": "qif_count",
+            "type": "uint32",
+            "offset": 16,
+            "description": "QIF 패킷 수 (컨트롤러 간)"
+        },
+        {
+            "name": "fcore_runtime_us",
+            "type": "uint32",
+            "offset": 20,
+            "description": "FCore 런타임 (마이크로초)"
+        },
+        {
+            "name": "qcore_runtime_us",
+            "type": "uint32",
+            "offset": 24,
+            "description": "QCore 런타임 (마이크로초)"
+        },
+        {
+            "name": "cmcore_runtime_us",
+            "type": "uint32",
+            "offset": 28,
+            "description": "CMCore 런타임 (마이크로초)"
+        },
+        {
+            "name": "gc_tokens",
+            "type": "uint16",
+            "offset": 32,
+            "description": "GC 토큰 개수"
+        },
+        {
+            "name": "free_blocks",
+            "type": "uint16",
+            "offset": 34,
+            "description": "Free 블록 수"
+        },
+        {
+            "name": "sq_count",
+            "type": "uint32",
+            "offset": 36,
+            "description": "Submission Queue 개수"
+        },
+        {
+            "name": "cq_count",
+            "type": "uint32",
+            "offset": 40,
+            "description": "Completion Queue 개수"
+        },
+        {
+            "name": "int_read_buf",
+            "type": "uint16",
+            "offset": 44,
+            "description": "Internal Read Buffer 사용량"
+        },
+        {
+            "name": "int_write_buf",
+            "type": "uint16",
+            "offset": 46,
+            "description": "Internal Write Buffer 사용량"
+        },
+        {
+            "name": "ext_read_buf",
+            "type": "uint16",
+            "offset": 48,
+            "description": "External (Host) Read Buffer"
+        },
+        {
+            "name": "ext_write_buf",
+            "type": "uint16",
+            "offset": 50,
+            "description": "External (Host) Write Buffer"
+        }
+    ],
+    
+    "_field_types": {
+        "uint8": "1 byte unsigned",
+        "uint16": "2 bytes unsigned",
+        "uint32": "4 bytes unsigned", 
+        "uint64": "8 bytes unsigned",
+        "int8": "1 byte signed",
+        "int16": "2 bytes signed",
+        "int32": "4 bytes signed",
+        "int64": "8 bytes signed",
+        "float32": "4 bytes float",
+        "float64": "8 bytes double"
+    },
+    
+    "_howto_find_offset": [
+        "1. hexdump -C dump.bin | head -50",
+        "2. 패턴 찾기: 반복되는 구조 확인",
+        "3. 첫 번째 필드 offset 확인 (보통 헤더 다음)",
+        "4. 각 필드의 byte 크기 확인 후 offset 계산"
+    ]
+}
+

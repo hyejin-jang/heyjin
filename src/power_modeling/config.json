@@ -1,0 +1,47 @@
+{
+    "model_name": "SSD_Power_Model_v1",
+    "description": "AI-based power prediction model for WLG optimization",
+    "target_power_watts": 11.0,
+    "data_collection": {
+        "workload_profiles": [
+            {
+                "read_pct": 0,
+                "write_pct": 100
+            },
+            {
+                "read_pct": 25,
+                "write_pct": 75
+            },
+            {
+                "read_pct": 50,
+                "write_pct": 50
+            },
+            {
+                "read_pct": 75,
+                "write_pct": 25
+            },
+            {
+                "read_pct": 100,
+                "write_pct": 0
+            }
+        ],
+        "block_sizes": [
+            "4k",
+            "128k"
+        ],
+        "queue_depth": 32,
+        "duration_seconds": 60
+    },
+    "model_parameters": {
+        "features": [
+            "read_mbps",
+            "write_mbps",
+            "waf"
+        ],
+        "algorithm": "linear_regression"
+    },
+    "pmu_integration": {
+        "sample_interval_sec": 1,
+        "script_path": "/path/to/pmu_reader.sh"
+    }
+}

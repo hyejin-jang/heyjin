@@ -1,0 +1,33 @@
+{
+    "profile_name": "WLG_E1S_Profile0",
+    "description": "MSFT WLG E1.S Workload - Abstracted Configuration",
+    "io_patterns": [
+        {
+            "type": "read",
+            "block_size": "4k",
+            "percentage": 42,
+            "queue_depth": 32
+        },
+        {
+            "type": "read",
+            "block_size": "128k",
+            "percentage": 58,
+            "queue_depth": 32
+        }
+    ],
+    "runtime_hours": 168,
+    "power_limit_watts": 11,
+    "targets": {
+        "iops_min": 850000,
+        "throughput_mbps_min": 12000,
+        "latency_p99_us_max": 500
+    },
+    "device": {
+        "path": "/dev/nvme0n1",
+        "size_gb": 128
+    },
+    "monitoring": {
+        "sample_interval_sec": 1,
+        "pmu_enabled": true
+    }
+}

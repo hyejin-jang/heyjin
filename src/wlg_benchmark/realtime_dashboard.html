@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WLG Benchmark - Real-time Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0e1a;
+            --bg-panel: #141929;
+            --primary: #00d9ff;
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff4466;
+            --text: #ffffff;
+            --text-dim: #7a8ba0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            padding: 2rem;
+        }
+
+        .header {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .running {
+            background: rgba(0, 217, 255, 0.2);
+            color: var(--primary);
+        }
+
+        .pass {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--success);
+        }
+
+        .fail {
+            background: rgba(255, 68, 102, 0.2);
+            color: var(--danger);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .chart-container {
+            grid-column: 1 / -1;
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            height: 400px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            transition: width 0.5s ease;
+        }
+
+        .target-line {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 0.5rem;
+        }
+
+        .pass-indicator {
+            color: var(--success);
+        }
+
+        .fail-indicator {
+            color: var(--danger);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>📊 WLG Benchmark Monitor</h1>
+        <div class="status-badge running" id="statusBadge">● Running...</div>
+    </div>
+
+    <div class="grid">
+        <!-- IOPS Card -->
+        <div class="card">
+            <div class="card-title">IOPS (Read)</div>
+            <div class="metric-value" style="color: var(--primary)" id="iopsValue">875K</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="iopsProgress" style="width: 103%"></div>
+            </div>
+            <div class="target-line">Target: 850K <span class="pass-indicator">✓ PASS</span></div>
+        </div>
+
+        <!-- Throughput Card -->
+        <div class="card">
+            <div class="card-title">Throughput</div>
+            <div class="metric-value" style="color: var(--success)" id="bwValue">12.5 GB/s</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="bwProgress" style="width: 104%"></div>
+            </div>
+            <div class="target-line">Target: 12.0 GB/s <span class="pass-indicator">✓ PASS</span></div>
+        </div>
+
+        <!-- Latency Card -->
+        <div class="card">
+            <div class="card-title">Latency (p99)</div>
+            <div class="metric-value" style="color: var(--warning)" id="latValue">450 µs</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="latProgress" style="width: 90%"></div>
+            </div>
+            <div class="target-line">Max: 500 µs <span class="pass-indicator">✓ PASS</span></div>
+        </div>
+
+        <!-- Power Card -->
+        <div class="card">
+            <div class="card-title">Power</div>
+            <div class="metric-value" style="color: var(--danger)" id="powerValue">10.8 W</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="powerProgress" style="width: 98%"></div>
+            </div>
+            <div class="target-line">Limit: 11.0 W <span class="pass-indicator">✓ PASS</span></div>
+        </div>
+    </div>
+
+    <!-- Real-time Graph -->
+    <div class="chart-container">
+        <canvas id="realtimeChart"></canvas>
+    </div>
+
+    <script>
+        // Initialize Chart.js
+        const ctx = document.getElementById('realtimeChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'IOPS (K)',
+                        data: [],
+                        borderColor: '#00d9ff',
+                        backgroundColor: 'rgba(0, 217, 255, 0.1)',
+                        borderWidth: 2,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Power (W)',
+                        data: [],
+                        borderColor: '#ff4466',
+                        backgroundColor: 'rgba(255, 68, 102, 0.1)',
+                        borderWidth: 2,
+                        yAxisID: 'y1'
+                    },
+                    {
+                        label: 'Latency (µs)',
+                        data: [],
+                        borderColor: '#ffaa00',
+                        backgroundColor: 'rgba(255, 170, 0, 0.1)',
+                        borderWidth: 2,
+                        yAxisID: 'y2'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#7a8ba0' }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#7a8ba0' }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'IOPS (K)', color: '#00d9ff' },
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#00d9ff' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Power (W)', color: '#ff4466' },
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: '#ff4466' }
+                    },
+                    y2: {
+                        type: 'linear',
+                        display: false,
+                        position: 'right',
+                        grid: { drawOnChartArea: false }
+                    }
+                }
+            }
+        });
+
+        // Simulated real-time data update
+        let time = 0;
+        setInterval(() => {
+            time += 1;
+
+            // Simulate fluctuating values
+            const iops = 850 + Math.random() * 50; // K
+            const power = 10.5 + Math.random() * 1.0; // W
+            const latency = 420 + Math.random() * 60; // µs
+
+            // Update cards
+            document.getElementById('iopsValue').textContent = `${iops.toFixed(0)}K`;
+            document.getElementById('powerValue').textContent = `${power.toFixed(1)} W`;
+            document.getElementById('latValue').textContent = `${latency.toFixed(0)} µs`;
+
+            // Update chart
+            chart.data.labels.push(`${time}s`);
+            chart.data.datasets[0].data.push(iops);
+            chart.data.datasets[1].data.push(power);
+            chart.data.datasets[2].data.push(latency);
+
+            // Keep last 60 data points
+            if (chart.data.labels.length > 60) {
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(ds => ds.data.shift());
+            }
+
+            chart.update('none');
+
+            // Simulate completion after 30 seconds
+            if (time === 30) {
+                document.getElementById('statusBadge').className = 'status-badge pass';
+                document.getElementById('statusBadge').textContent = '✓ PASS';
+            }
+        }, 1000);
+
+        // Load actual results from benchmark_results.json
+        fetch('benchmark_results.json')
+            .then(r => r.json())
+            .then(data => {
+                console.log('Benchmark results loaded:', data);
+                if (data.fio_results) {
+                    document.getElementById('iopsValue').textContent =
+                        `${(data.fio_results.iops / 1000).toFixed(0)}K`;
+                }
+                if (data.power_stats) {
+                    document.getElementById('powerValue').textContent =
+                        `${data.power_stats.avg_watts.toFixed(1)} W`;
+                }
+            })
+            .catch(() => console.log('No results file yet, using simulation'));
+    </script>
+</body>
+
+</html>

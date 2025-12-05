@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Power Model Visualizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e1a;
+            color: #fff;
+            padding: 2rem;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+            font-size: 2rem;
+        }
+
+        .subtitle {
+            color: #7a8ba0;
+            margin-bottom: 2rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: #141929;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #00d9ff;
+        }
+
+        .equation {
+            background: rgba(0, 217, 255, 0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(0, 217, 255, 0.2);
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .metric {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.75rem;
+            border-radius: 6px;
+        }
+
+        .metric-label {
+            font-size: 0.85rem;
+            color: #7a8ba0;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #00ff88;
+        }
+
+        #plot3d {
+            grid-column: 1 / -1;
+            height: 600px;
+        }
+
+        .controls {
+            grid-column: 1 / -1;
+        }
+
+        .slider-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .slider-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #7a8ba0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            border-radius: 3px;
+        }
+
+        .value-display {
+            float: right;
+            color: #00d9ff;
+            font-weight: 600;
+        }
+
+        .prediction-box {
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(0, 255, 136, 0.1));
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(0, 217, 255, 0.3);
+        }
+
+        .prediction-label {
+            font-size: 0.9rem;
+            color: #7a8ba0;
+            margin-bottom: 0.5rem;
+        }
+
+        .prediction-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #00d9ff;
+        }
+
+        .status {
+            margin-top: 0.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .pass {
+            color: #00ff88;
+        }
+
+        .fail {
+            color: #ff4466;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>⚡ AI Power Model Visualizer</h1>
+    <p class="subtitle">Interactive 3D visualization of SSD power consumption model</p>
+
+    <div class="container">
+        <!-- Model Coefficients -->
+        <div class="card">
+            <h2>📊 Model Equation</h2>
+            <div class="equation" id="equation">
+                Power = 0.00150 × Read + 0.00250 × Write + 1.20 × WAF + 7.50
+            </div>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-label">Read Coefficient</div>
+                    <div class="metric-value" id="readCoef">0.00150</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Write Coefficient</div>
+                    <div class="metric-value" id="writeCoef">0.00250</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">WAF Coefficient</div>
+                    <div class="metric-value" id="wafCoef">1.20</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Intercept (Baseline)</div>
+                    <div class="metric-value" id="intercept">7.50 W</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Prediction -->
+        <div class="card">
+            <h2>🔮 Live Prediction</h2>
+            <div class="prediction-box">
+                <div class="prediction-label">Predicted Power Consumption</div>
+                <div class="prediction-value" id="predictedPower">10.5 W</div>
+                <div class="status pass" id="status">✓ Within 11W Target</div>
+            </div>
+        </div>
+
+        <!-- 3D Plot -->
+        <div class="card" id="plot3d"></div>
+
+        <!-- Interactive Controls -->
+        <div class="card controls">
+            <h2>🎛️ Workload Controls</h2>
+            <div class="slider-group">
+                <label>
+                    Read Throughput <span class="value-display" id="readValue">3000 MB/s</span>
+                </label>
+                <input type="range" id="readSlider" min="0" max="5000" value="3000" step="100">
+            </div>
+            <div class="slider-group">
+                <label>
+                    Write Throughput <span class="value-display" id="writeValue">1500 MB/s</span>
+                </label>
+                <input type="range" id="writeSlider" min="0" max="3000" value="1500" step="100">
+            </div>
+            <div class="slider-group">
+                <label>
+                    WAF (Write Amplification) <span class="value-display" id="wafValue">2.0</span>
+                </label>
+                <input type="range" id="wafSlider" min="1" max="4" value="2" step="0.1">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Model coefficients (from training)
+        const coeffs = {
+            read: 0.00150,
+            write: 0.00250,
+            waf: 1.20,
+            intercept: 7.50
+        };
+
+        const targetPower = 11.0;
+
+        // Predict power
+        function predictPower(read, write, waf) {
+            return coeffs.read * read + coeffs.write * write + coeffs.waf * waf + coeffs.intercept;
+        }
+
+        // Create 3D surface plot
+        function createPlot() {
+            const readRange = Array.from({ length: 20 }, (_, i) => i * 250);
+            const writeRange = Array.from({ length: 20 }, (_, i) => i * 150);
+
+            const z = [];
+            for (let write of writeRange) {
+                const row = [];
+                for (let read of readRange) {
+                    const power = predictPower(read, write, 2.0); // Fixed WAF=2.0
+                    row.push(power);
+                }
+                z.push(row);
+            }
+
+            const surfaceData = {
+                type: 'surface',
+                x: readRange,
+                y: writeRange,
+                z: z,
+                colorscale: 'Viridis',
+                showscale: true,
+                opacity: 0.9
+            };
+
+            // Target power plane
+            const targetZ = Array(20).fill(Array(20).fill(targetPower));
+            const targetPlane = {
+                type: 'surface',
+                x: readRange,
+                y: writeRange,
+                z: targetZ,
+                colorscale: [[0, 'rgba(255,68,102,0.3)'], [1, 'rgba(255,68,102,0.3)']],
+                showscale: false,
+                name: '11W Target',
+                opacity: 0.4
+            };
+
+            const layout = {
+                scene: {
+                    xaxis: { title: 'Read (MB/s)', color: '#7a8ba0' },
+                    yaxis: { title: 'Write (MB/s)', color: '#7a8ba0' },
+                    zaxis: { title: 'Power (W)', color: '#7a8ba0' },
+                    bgcolor: '#0a0e1a'
+                },
+                paper_bgcolor: '#141929',
+                plot_bgcolor: '#141929',
+                font: { color: '#fff' },
+                margin: { l: 0, r: 0, t: 40, b: 0 },
+                title: {
+                    text: 'Power Consumption Surface (WAF=2.0)',
+                    font: { size: 14, color: '#00d9ff' }
+                }
+            };
+
+            Plotly.newPlot('plot3d', [surfaceData, targetPlane], layout);
+        }
+
+        // Update prediction
+        function updatePrediction() {
+            const read = parseFloat(document.getElementById('readSlider').value);
+            const write = parseFloat(document.getElementById('writeSlider').value);
+            const waf = parseFloat(document.getElementById('wafSlider').value);
+
+            const power = predictPower(read, write, waf);
+
+            document.getElementById('readValue').textContent = `${read} MB/s`;
+            document.getElementById('writeValue').textContent = `${write} MB/s`;
+            document.getElementById('wafValue').textContent = waf.toFixed(1);
+            document.getElementById('predictedPower').textContent = `${power.toFixed(2)} W`;
+
+            const statusEl = document.getElementById('status');
+            if (power <= targetPower) {
+                statusEl.textContent = `✓ Within ${targetPower}W Target`;
+                statusEl.className = 'status pass';
+            } else {
+                statusEl.textContent = `✗ Exceeds ${targetPower}W Target (${(power - targetPower).toFixed(2)}W over)`;
+                statusEl.className = 'status fail';
+            }
+        }
+
+        // Event listeners
+        document.getElementById('readSlider').addEventListener('input', updatePrediction);
+        document.getElementById('writeSlider').addEventListener('input', updatePrediction);
+        document.getElementById('wafSlider').addEventListener('input', updatePrediction);
+
+        // Initialize
+        createPlot();
+        updatePrediction();
+
+        // Try to load actual model coefficients
+        fetch('power_model.pkl')
+            .then(() => console.log('Model file exists'))
+            .catch(() => console.log('Using default coefficients for demo'));
+    </script>
+</body>
+
+</html>

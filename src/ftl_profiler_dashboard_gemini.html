@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini FTL Profiler</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #030508;
+            --glass-bg: rgba(20, 25, 35, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-muted: #8b9bb4;
+
+            /* Gemini Brand Colors (Approximate) */
+            --accent-primary: #4facfe;
+            /* Blue-ish */
+            --accent-secondary: #00f2ff;
+            /* Cyan */
+            --accent-tertiary: #a18cd1;
+            /* Purple-ish */
+            --accent-warn: #ffca28;
+            --accent-danger: #ff5252;
+
+            --gradient-main: linear-gradient(135deg, #4facfe 0%, #00f2ff 100%);
+            --gradient-glow: linear-gradient(135deg, rgba(79, 172, 254, 0.2) 0%, rgba(0, 242, 255, 0.1) 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(79, 172, 254, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(161, 140, 209, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 24px;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Utility Classes */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flex-between {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: auto 1fr 280px;
+            gap: 24px;
+            height: 100%;
+            flex: 1;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            padding: 0 8px;
+            margin-bottom: 8px;
+        }
+
+        .brand {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, #fff, #a18cd1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--gradient-main);
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            box-shadow: 0 0 15px rgba(79, 172, 254, 0.5);
+        }
+
+        .controls {
+            gap: 12px;
+            display: flex;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 10px rgba(79, 172, 254, 0.2);
+        }
+
+        .btn-primary {
+            background: var(--gradient-main);
+            border: none;
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            grid-row: 2 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .stat-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stat-card {
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--accent-primary);
+            box-shadow: 0 0 10px var(--accent-primary);
+        }
+
+        .stat-card.write::before {
+            background: var(--accent-tertiary);
+            box-shadow: 0 0 10px var(--accent-tertiary);
+        }
+
+        .stat-card.warn::before {
+            background: var(--accent-warn);
+            box-shadow: 0 0 10px var(--accent-warn);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .stat-unit {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-left: 4px;
+            font-weight: 400;
+        }
+
+        /* Main Chart Area */
+        .main-chart-panel {
+            grid-column: 2;
+            grid-row: 2;
+            padding: 20px;
+            position: relative;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-indicator {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-secondary);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-secondary);
+            animation: pulse 2s infinite;
+        }
+
+        /* Gemini Insight Panel */
+        .gemini-insight {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+            background: rgba(10, 10, 15, 0.85);
+            border: 1px solid rgba(161, 140, 209, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            backdrop-filter: blur(20px);
+            transform: translateX(20px);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .gemini-insight.active {
+            transform: translateX(0);
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .insight-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            color: var(--accent-tertiary);
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .sparkle-icon {
+            font-size: 16px;
+        }
+
+        .insight-content {
+            font-size: 13px;
+            line-height: 1.5;
+            color: #e0e0e0;
+        }
+
+        .typing-cursor::after {
+            content: '|';
+            animation: blink 1s infinite;
+        }
+
+        /* Timeline Area */
+        .timeline-panel {
+            grid-column: 2;
+            grid-row: 3;
+            padding: 20px;
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(1.2);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: calc(100% - 40px);
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header flex-between">
+        <div class="brand">
+            <div class="brand-icon">✨</div>
+            Gemini FTL Profiler
+        </div>
+        <div class="controls">
+            <div class="glass-panel flex-center" style="padding: 0 16px; height: 40px; font-size: 12px; gap: 8px;">
+                <span style="color:var(--text-muted)">STATUS</span>
+                <span id="status-indicator" style="color:var(--accent-secondary); font-weight:700">MONITORING</span>
+            </div>
+            <button class="btn" onclick="generateNewData()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6M1 20v-6h6"></path>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                Regenerate
+            </button>
+            <button class="btn btn-primary" onclick="togglePlay()" id="playBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                Play Log
+            </button>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="glass-panel stat-group" style="padding: 20px;">
+                <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:10px;">READ METRICS
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Throughput</div>
+                    <div class="stat-value mono" id="read-iops">0<span class="stat-unit">K IOPS</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Latency</div>
+                    <div class="stat-value mono" id="read-lat">0<span class="stat-unit">μs</span></div>
+                </div>
+            </div>
+
+            <div class="glass-panel stat-group" style="padding: 20px;">
+                <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:10px;">WRITE METRICS
+                </div>
+                <div class="stat-card write">
+                    <div class="stat-label">Throughput</div>
+                    <div class="stat-value mono" id="write-iops">0<span class="stat-unit">K IOPS</span></div>
+                </div>
+                <div class="stat-card write">
+                    <div class="stat-label">Avg Latency</div>
+                    <div class="stat-value mono" id="write-lat">0<span class="stat-unit">μs</span></div>
+                </div>
+            </div>
+
+            <div class="glass-panel stat-card warn" style="margin-top:auto; background: rgba(255, 202, 40, 0.05);">
+                <div class="stat-label" style="color:var(--accent-warn)">Anomalies</div>
+                <div class="stat-value mono" id="anomaly-count" style="color:var(--accent-warn)">0</div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Events > 2ms threshold</div>
+            </div>
+        </div>
+
+        <!-- Main Chart -->
+        <div class="glass-panel main-chart-panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    Latency Distribution
+                    <span
+                        style="font-size:12px; color:var(--text-muted); font-weight:400; margin-left:8px;">(Logarithmic
+                        Scale)</span>
+                </div>
+                <div class="live-indicator"></div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="distChart"></canvas>
+            </div>
+
+            <!-- Gemini Insight Overlay -->
+            <div id="gemini-insight" class="gemini-insight">
+                <div class="insight-header">
+                    <span class="sparkle-icon">✨</span> Gemini Insight
+                </div>
+                <div class="insight-content" id="insight-text"></div>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="glass-panel timeline-panel">
+            <div class="panel-header">
+                <div class="panel-title">Latency History</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const BUCKETS = [
+            "0-10μs", "10-25μs", "25-50μs", "50-100μs", "100-250μs", "250-500μs",
+            "500-1ms", "1-2ms", "2-4ms", "4-8ms", "8-16ms", "16-32ms",
+            "32-64ms", "64ms+", "128ms+", ">256ms"
+        ];
+
+        // --- Chart Styling ---
+        Chart.defaults.color = '#8b9bb4';
+        Chart.defaults.font.family = "'JetBrains Mono', monospace";
+        Chart.defaults.font.size = 11;
+
+        const ctxDist = document.getElementById('distChart').getContext('2d');
+        const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
+
+        // Gradients
+        const readGradient = ctxDist.createLinearGradient(0, 0, 0, 400);
+        readGradient.addColorStop(0, 'rgba(0, 242, 255, 0.8)');
+        readGradient.addColorStop(1, 'rgba(0, 242, 255, 0.1)');
+
+        const writeGradient = ctxDist.createLinearGradient(0, 0, 0, 400);
+        writeGradient.addColorStop(0, 'rgba(161, 140, 209, 0.8)');
+        writeGradient.addColorStop(1, 'rgba(161, 140, 209, 0.1)');
+
+        // --- Charts Init ---
+        const distChart = new Chart(ctxDist, {
+            type: 'bar',
+            data: {
+                labels: BUCKETS,
+                datasets: [{
+                    label: 'Read',
+                    data: [],
+                    backgroundColor: '#00f2ff',
+                    borderRadius: 4,
+                    barPercentage: 0.6,
+                    order: 2
+                }, {
+                    label: 'Write',
+                    data: [],
+                    backgroundColor: '#a18cd1',
+                    borderRadius: 4,
+                    barPercentage: 0.6,
+                    order: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: { usePointStyle: true, boxWidth: 8 }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(10, 15, 25, 0.9)',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        padding: 10,
+                        titleFont: { family: 'Outfit' }
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'logarithmic',
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        border: { display: false }
+                    },
+                    x: {
+                        grid: { display: false },
+                        border: { display: false }
+                    }
+                },
+                animation: { duration: 300 }
+            }
+        });
+
+        const timelineChart = new Chart(ctxTimeline, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 50 }, (_, i) => i),
+                datasets: [{
+                    label: 'Write Latency',
+                    data: [],
+                    borderColor: '#a18cd1',
+                    backgroundColor: 'rgba(161, 140, 209, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0
+                }, {
+                    label: 'Read Latency',
+                    data: [],
+                    borderColor: '#00f2ff',
+                    borderWidth: 2,
+                    tension: 0.4,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        border: { display: false },
+                        beginAtZero: true
+                    },
+                    x: { display: false }
+                },
+                interaction: { intersect: false, mode: 'index' }
+            }
+        });
+
+        // --- Data Simulation ---
+        let historyData = [];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let playTimer;
+        let anomalyCount = 0;
+
+        function generateData() {
+            historyData = [];
+            anomalyCount = 0;
+
+            for (let t = 0; t < 100; t++) {
+                // Base distributions
+                let read = Array(16).fill(0);
+                let write = Array(16).fill(0);
+
+                // Simulate GC events at specific intervals
+                const isGC = (t > 30 && t < 40) || (t > 75 && t < 85);
+
+                // Read: Consistent low latency
+                for (let i = 0; i < 4000; i++) {
+                    let b = Math.floor(Math.abs(randn() * 2));
+                    if (b < 16) read[b]++;
+                }
+
+                // Write: Depends on GC
+                for (let i = 0; i < 2500; i++) {
+                    let b;
+                    if (isGC) {
+                        // GC pushes writes to 2ms-8ms range (buckets 7-9)
+                        b = 7 + Math.floor(Math.random() * 3);
+                    } else {
+                        // Normal SLC writes (25-100us) -> buckets 2-3
+                        b = 2 + Math.floor(Math.random() * 2);
+                    }
+                    if (b < 16) write[b]++;
+                }
+
+                historyData.push({
+                    read,
+                    write,
+                    isAnomaly: isGC,
+                    avgRead: 45 + Math.random() * 5,
+                    avgWrite: isGC ? 1200 + Math.random() * 300 : 80 + Math.random() * 10
+                });
+            }
+            currentIndex = 0;
+            updateDashboard();
+        }
+
+        function randn() {
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        // --- UI Logic ---
+        function updateDashboard() {
+            if (currentIndex >= historyData.length) currentIndex = 0;
+            const frame = historyData[currentIndex];
+
+            // Update Charts
+            distChart.data.datasets[0].data = frame.read;
+            distChart.data.datasets[1].data = frame.write;
+            distChart.update('none'); // 'none' for performance
+
+            // Update Timeline
+            const windowSize = 50;
+            const start = Math.max(0, currentIndex - windowSize);
+            const timelineData = historyData.slice(start, currentIndex + 1);
+
+            timelineChart.data.labels = timelineData.map((_, i) => i);
+            timelineChart.data.datasets[0].data = timelineData.map(d => d.avgWrite);
+            timelineChart.data.datasets[1].data = timelineData.map(d => d.avgRead);
+            timelineChart.update('none');
+
+            // Update Stats
+            document.getElementById('read-iops').innerHTML = (frame.read.reduce((a, b) => a + b, 0) / 100).toFixed(1) + '<span class="stat-unit">K IOPS</span>';
+            document.getElementById('write-iops').innerHTML = (frame.write.reduce((a, b) => a + b, 0) / 100).toFixed(1) + '<span class="stat-unit">K IOPS</span>';
+            document.getElementById('read-lat').innerHTML = frame.avgRead.toFixed(0) + '<span class="stat-unit">μs</span>';
+            document.getElementById('write-lat').innerHTML = frame.avgWrite.toFixed(0) + '<span class="stat-unit">μs</span>';
+
+            // Anomaly Handling & Gemini Insight
+            const insightPanel = document.getElementById('gemini-insight');
+            const statusInd = document.getElementById('status-indicator');
+
+            if (frame.isAnomaly) {
+                if (!insightPanel.classList.contains('active')) {
+                    insightPanel.classList.add('active');
+                    typeWriter("Analysis detected Garbage Collection interference pattern. Write latency degraded to >1.2ms. Suggest increasing OP ratio.");
+                    anomalyCount++;
+                    document.getElementById('anomaly-count').innerText = anomalyCount;
+                }
+                statusInd.innerText = "ANALYZING...";
+                statusInd.style.color = "var(--accent-warn)";
+            } else {
+                if (insightPanel.classList.contains('active')) {
+                    insightPanel.classList.remove('active');
+                    document.getElementById('insight-text').innerHTML = ""; // Clear text
+                }
+                statusInd.innerText = "OPTIMAL";
+                statusInd.style.color = "var(--accent-secondary)";
+            }
+        }
+
+        // Typing Effect for Gemini Insight
+        let typeTimeout;
+        function typeWriter(text) {
+            const el = document.getElementById('insight-text');
+            el.innerHTML = '<span class="typing-cursor"></span>';
+            let i = 0;
+            clearTimeout(typeTimeout);
+
+            function type() {
+                if (i < text.length) {
+                    el.innerHTML = text.substring(0, i + 1) + '<span class="typing-cursor"></span>';
+                    i++;
+                    typeTimeout = setTimeout(type, 30);
+                } else {
+                    el.innerHTML = text; // Remove cursor at end
+                }
+            }
+            type();
+        }
+
+        function togglePlay() {
+            const btn = document.getElementById('playBtn');
+            if (isPlaying) {
+                clearInterval(playTimer);
+                isPlaying = false;
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Play Log';
+                btn.classList.add('btn-primary');
+                btn.style.background = 'var(--gradient-main)';
+            } else {
+                isPlaying = true;
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg> Pause';
+                btn.classList.remove('btn-primary');
+                btn.style.background = 'rgba(255,255,255,0.1)';
+
+                playTimer = setInterval(() => {
+                    currentIndex++;
+                    updateDashboard();
+                }, 100);
+            }
+        }
+
+        function generateNewData() {
+            generateData();
+            if (!isPlaying) updateDashboard();
+        }
+
+        // Init
+        generateData();
+
+    </script>
+</body>
+
+</html>

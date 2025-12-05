@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVMe SMART Health Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--text-main);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .container {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Status Banner */
+        .status-banner {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--accent-green);
+        }
+
+        .status-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .card-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+
+        .card-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        /* AI Insight */
+        .ai-insight-box {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .ai-title {
+            color: var(--accent-blue);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .insight-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .insight-item {
+            display: flex;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        /* File Input */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .btn {
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            background-color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background-color: #f9fafb;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-blue);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+
+        input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>NVMe SMART Monitor</h1>
+        <div class="header-controls">
+            <div class="file-input-wrapper">
+                <button class="btn">📂 Load JSON</button>
+                <input type="file" id="fileInput" accept=".json" onchange="handleFileLoad(this)">
+            </div>
+            <button class="btn btn-primary" onclick="loadMockData()">🔄 Load Mock Data</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Overall Status -->
+        <div class="status-banner">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <div>
+                    <div class="status-text" id="statusText">Healthy</div>
+                    <div style="font-size: 0.9rem; color: var(--text-muted);">Last updated: Just now</div>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-weight: bold; font-size: 1.2rem;" id="tempVal">35°C</div>
+                <div style="font-size: 0.9rem; color: var(--text-muted);">Composite Temperature</div>
+            </div>
+        </div>
+
+        <!-- AI Insights -->
+        <div class="ai-insight-box" id="aiBox" style="display:none;">
+            <div class="ai-title">🤖 AI Analysis Report</div>
+            <div class="insight-list" id="aiList">
+                <!-- Insights go here -->
+            </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-title">Remaining Life</div>
+                <div class="card-value" id="lifeVal">100%</div>
+                <div class="card-sub">Based on Percentage Used</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Available Spare</div>
+                <div class="card-value" id="spareVal">100%</div>
+                <div class="card-sub">Threshold: 10%</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Data Written</div>
+                <div class="card-value" id="writeVal">0 TB</div>
+                <div class="card-sub">Total NAND Writes (Est.)</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Power On Hours</div>
+                <div class="card-value" id="pohVal">0 h</div>
+                <div class="card-sub">Active Time</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-title">Temperature History (Mock)</div>
+                <canvas id="tempChart" height="200"></canvas>
+            </div>
+            <div class="card">
+                <div class="card-title">Workload Distribution (R/W)</div>
+                <canvas id="rwChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tempChart = null;
+        let rwChart = null;
+
+        window.onload = function () {
+            loadMockData();
+        };
+
+        function handleFileLoad(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    updateDashboard(data);
+                } catch (err) {
+                    alert('Invalid JSON file');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function loadMockData() {
+            // Generate random mock SMART data
+            const mockData = {
+                critical_warning: 0,
+                temperature_celsius: Math.floor(Math.random() * 40) + 30,
+                available_spare_pct: Math.floor(Math.random() * 20) + 80,
+                percentage_used: Math.floor(Math.random() * 10),
+                total_gb_written: (Math.random() * 50).toFixed(2),
+                power_on_hours: Math.floor(Math.random() * 5000),
+                host_read_commands: Math.floor(Math.random() * 100000),
+                host_write_commands: Math.floor(Math.random() * 50000)
+            };
+            updateDashboard(mockData);
+        }
+
+        function updateDashboard(data) {
+            // Update Values
+            document.getElementById('tempVal').innerText = data.temperature_celsius + '°C';
+            document.getElementById('lifeVal').innerText = (100 - data.percentage_used) + '%';
+            document.getElementById('spareVal').innerText = data.available_spare_pct + '%';
+            document.getElementById('writeVal').innerText = data.total_gb_written + ' GB';
+            document.getElementById('pohVal').innerText = data.power_on_hours + ' h';
+
+            // Status Logic
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+
+            if (data.critical_warning > 0 || data.available_spare_pct < 10 || data.temperature_celsius > 70) {
+                dot.style.backgroundColor = '#ef4444';
+                text.innerText = 'Critical Warning';
+                text.style.color = '#ef4444';
+            } else if (data.available_spare_pct < 20 || data.temperature_celsius > 60) {
+                dot.style.backgroundColor = '#f59e0b';
+                text.innerText = 'Warning';
+                text.style.color = '#f59e0b';
+            } else {
+                dot.style.backgroundColor = '#10b981';
+                text.innerText = 'Healthy';
+                text.style.color = '#10b981';
+            }
+
+            // AI Analysis
+            runAIAnalysis(data);
+
+            // Update Charts
+            updateCharts(data);
+        }
+
+        function runAIAnalysis(data) {
+            const box = document.getElementById('aiBox');
+            const list = document.getElementById('aiList');
+            box.style.display = 'block';
+            list.innerHTML = '';
+
+            const insights = [];
+
+            if (data.temperature_celsius > 65) {
+                insights.push('⚠️ <b>High Temperature:</b> Drive is running hot. Check airflow.');
+            }
+            if (data.available_spare_pct < 20) {
+                insights.push('⚠️ <b>Low Spare:</b> Available spare blocks are running low. Plan for replacement.');
+            }
+            if (data.percentage_used > 90) {
+                insights.push('⚠️ <b>End of Life:</b> Drive has used >90% of estimated endurance.');
+            }
+
+            if (insights.length === 0) {
+                insights.push('✅ <b>Optimal Operation:</b> No anomalies detected in SMART data.');
+            }
+
+            list.innerHTML = insights.map(i => `<div class="insight-item">${i}</div>`).join('');
+        }
+
+        function updateCharts(data) {
+            const ctx1 = document.getElementById('tempChart').getContext('2d');
+            const ctx2 = document.getElementById('rwChart').getContext('2d');
+
+            if (tempChart) tempChart.destroy();
+            if (rwChart) rwChart.destroy();
+
+            // Mock History for Temperature
+            const history = Array(10).fill(0).map(() => data.temperature_celsius + Math.floor(Math.random() * 5) - 2);
+
+            tempChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: ['-9m', '-8m', '-7m', '-6m', '-5m', '-4m', '-3m', '-2m', '-1m', 'Now'],
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: history,
+                        borderColor: '#3b82f6',
+                        tension: 0.4,
+                        fill: true,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { min: 20, max: 80 } }
+                }
+            });
+
+            rwChart = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Read Commands', 'Write Commands'],
+                    datasets: [{
+                        data: [data.host_read_commands, data.host_write_commands],
+                        backgroundColor: ['#10b981', '#f59e0b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } }
+                }
+            });
+        }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NVMe Latency Analyzer Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #0a0f14;
+            --text-main: #e0e0e0;
+            --text-dim: #888;
+            --accent-read: #00f2ff;
+            --accent-write: #ff0055;
+            --accent-warn: #ffbd00;
+            --grid-color: #1a1f26;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: 60px 1fr 250px;
+            gap: 20px;
+            height: 100%;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--grid-color);
+            padding-bottom: 10px;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, var(--accent-read), var(--accent-write));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .controls button {
+            background: var(--panel-bg);
+            border: 1px solid var(--accent-read);
+            color: var(--accent-read);
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .controls button:hover {
+            background: var(--accent-read);
+            color: #000;
+        }
+
+        /* Sidebar - Stats */
+        .sidebar {
+            grid-row: 2 / -1;
+            background: var(--panel-bg);
+            padding: 20px;
+            border: 1px solid var(--grid-color);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.03);
+            padding: 15px;
+            border-left: 3px solid var(--text-dim);
+        }
+
+        .stat-card.read { border-color: var(--accent-read); }
+        .stat-card.write { border-color: var(--accent-write); }
+
+        .stat-label { font-size: 12px; color: var(--text-dim); margin-bottom: 5px; }
+        .stat-value { font-size: 24px; font-weight: 700; }
+        .stat-unit { font-size: 12px; margin-left: 5px; }
+
+        /* Main Charts */
+        .main-view {
+            grid-column: 2;
+            grid-row: 2;
+            background: var(--panel-bg);
+            border: 1px solid var(--grid-color);
+            position: relative;
+            padding: 10px;
+        }
+
+        .timeline-view {
+            grid-column: 2;
+            grid-row: 3;
+            background: var(--panel-bg);
+            border: 1px solid var(--grid-color);
+            padding: 10px;
+        }
+
+        canvas { width: 100%; height: 100%; }
+
+        /* Analysis Panel */
+        .analysis-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 250px;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--accent-warn);
+            padding: 15px;
+            display: none;
+        }
+
+        .alert-blink {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0% { box-shadow: 0 0 0 0 rgba(255, 0, 85, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 0, 85, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 0, 85, 0); }
+        }
+
+        .bucket-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-dim);
+            padding: 0 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <!-- Header -->
+    <div class="header">
+        <div class="title">NVMe Latency Analyzer <span style="font-size:12px; color:#666">v2.0 (Spec 1.4 Compliant)</span></div>
+        <div class="controls">
+            <span id="status-text" style="margin-right:15px; font-size:12px; color:#888">STATUS: IDLE</span>
+            <button onclick="togglePlay()">▶ PLAY LOG</button>
+            <button onclick="generateNewData()">↻ NEW MOCK DATA</button>
+        </div>
+    </div>
+
+    <!-- Sidebar Stats -->
+    <div class="sidebar">
+        <div class="stat-card read">
+            <div class="stat-label">READ IOPS</div>
+            <div class="stat-value" id="read-iops">0<span class="stat-unit">k</span></div>
+        </div>
+        <div class="stat-card read">
+            <div class="stat-label">READ Latency (Avg)</div>
+            <div class="stat-value" id="read-lat">0<span class="stat-unit">us</span></div>
+        </div>
+        <div class="stat-card read">
+            <div class="stat-label">READ QoS (99.9%)</div>
+            <div class="stat-value" id="read-qos">0<span class="stat-unit">us</span></div>
+        </div>
+        
+        <div style="height:1px; background:var(--grid-color)"></div>
+
+        <div class="stat-card write">
+            <div class="stat-label">WRITE IOPS</div>
+            <div class="stat-value" id="write-iops">0<span class="stat-unit">k</span></div>
+        </div>
+        <div class="stat-card write">
+            <div class="stat-label">WRITE Latency (Avg)</div>
+            <div class="stat-value" id="write-lat">0<span class="stat-unit">us</span></div>
+        </div>
+        <div class="stat-card write">
+            <div class="stat-label">WRITE QoS (99.9%)</div>
+            <div class="stat-value" id="write-qos">0<span class="stat-unit">us</span></div>
+        </div>
+
+        <div class="stat-card" style="border-color: var(--accent-warn); margin-top: auto;">
+            <div class="stat-label">ANOMALY DETECTED</div>
+            <div class="stat-value" id="anomaly-count" style="color:var(--accent-warn)">0</div>
+            <div style="font-size:10px; color:#666; margin-top:5px">Spikes > 2ms</div>
+        </div>
+    </div>
+
+    <!-- Main Chart: Distribution -->
+    <div class="main-view">
+        <div style="position:absolute; top:10px; left:15px; font-size:12px; color:#888">REAL-TIME LATENCY DISTRIBUTION (Log Scale)</div>
+        <canvas id="distChart"></canvas>
+        
+        <!-- AI Analysis Overlay -->
+        <div id="analysis-panel" class="analysis-overlay">
+            <div style="color:var(--accent-warn); font-weight:bold; margin-bottom:5px">⚠️ LATENCY SPIKE DETECTED</div>
+            <div style="font-size:12px; line-height:1.4">
+                Detected sudden increase in write latency buckets (500us~1ms).<br><br>
+                Potential Cause:<br>
+                - GC Foreground Activity<br>
+                - SLC Buffer Saturation
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Chart -->
+    <div class="timeline-view">
+        <div style="position:absolute; top:5px; left:15px; font-size:12px; color:#888">LATENCY HEATMAP HISTORY</div>
+        <canvas id="timelineChart"></canvas>
+    </div>
+</div>
+
+<script>
+// --- NVMe Spec Definitions ---
+// 32 Buckets simulation
+const BUCKETS = [
+    "0-10us", "10-25us", "25-50us", "50-100us", "100-250us", "250-500us", 
+    "500-1000us", "1-2ms", "2-4ms", "4-8ms", "8-16ms", "16-32ms", 
+    "32-64ms", "64-128ms", "128-256ms", ">256ms"
+]; // Simplified to 16 for visual clarity
+
+// Mock Data Generator
+let historyData = [];
+let currentTimeIndex = 0;
+let isPlaying = false;
+let playInterval;
+
+function generateMockData() {
+    historyData = [];
+    // Generate 100 time points (every 100ms)
+    for (let t = 0; t < 100; t++) {
+        // Simulate Normal Workload
+        let readDist = Array(16).fill(0);
+        let writeDist = Array(16).fill(0);
+        
+        // Read: mostly fast (0-100us)
+        for(let i=0; i<5000; i++) {
+            let bucket = Math.floor(Math.abs(normalRandom() * 3)); // Bias to 0-2
+            if(bucket < 16) readDist[bucket]++;
+        }
+
+        // Write: varying (SLC vs TLC)
+        let isGCTriggered = (t > 30 && t < 45) || (t > 80 && t < 90); // Simulate GC Event
+        
+        for(let i=0; i<3000; i++) {
+            let bucket;
+            if(isGCTriggered) {
+                // GC Active: Push to higher latency (1-8ms)
+                bucket = 7 + Math.floor(Math.random() * 4); 
+            } else {
+                // Normal Write: Fast (25-100us)
+                bucket = 2 + Math.floor(Math.random() * 3);
+            }
+            if(bucket < 16) writeDist[bucket]++;
+        }
+
+        historyData.push({
+            time: t,
+            read: readDist,
+            write: writeDist,
+            isAnomaly: isGCTriggered
+        });
+    }
+    currentTimeIndex = 0;
+    updateUI();
+}
+
+// Box-Muller transform for normal distribution
+function normalRandom() {
+    let u = 0, v = 0;
+    while(u === 0) u = Math.random(); 
+    while(v === 0) v = Math.random();
+    return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+}
+
+// --- Charts Setup ---
+const ctxDist = document.getElementById('distChart').getContext('2d');
+const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
+
+const distChart = new Chart(ctxDist, {
+    type: 'bar',
+    data: {
+        labels: BUCKETS,
+        datasets: [{
+            label: 'Read IOs',
+            data: [],
+            backgroundColor: '#00f2ff',
+            barPercentage: 0.6
+        }, {
+            label: 'Write IOs',
+            data: [],
+            backgroundColor: '#ff0055',
+            barPercentage: 0.6
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: { 
+                type: 'logarithmic', 
+                grid: { color: '#222' },
+                ticks: { color: '#666' }
+            },
+            x: { 
+                grid: { display: false },
+                ticks: { color: '#888', font: {size: 10} }
+            }
+        },
+        plugins: { legend: { position: 'top', labels: {color:'#ccc'} } },
+        animation: { duration: 0 } // Disable animation for performance
+    }
+});
+
+const timelineChart = new Chart(ctxTimeline, {
+    type: 'line',
+    data: {
+        labels: Array.from({length: 50}, (_, i) => i),
+        datasets: [{
+            label: 'Avg Write Latency',
+            data: [],
+            borderColor: '#ff0055',
+            tension: 0.4,
+            fill: true,
+            backgroundColor: 'rgba(255, 0, 85, 0.1)'
+        }, {
+            label: 'Avg Read Latency',
+            data: [],
+            borderColor: '#00f2ff',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: { beginAtZero: true, grid: { color: '#222' } },
+            x: { display: false }
+        },
+        plugins: { legend: { display: false } },
+        elements: { point: { radius: 0 } }
+    }
+});
+
+// --- Logic ---
+function updateUI() {
+    if (currentTimeIndex >= historyData.length) currentTimeIndex = 0;
+    
+    const frame = historyData[currentTimeIndex];
+    
+    // 1. Update Dist Chart
+    distChart.data.datasets[0].data = frame.read;
+    distChart.data.datasets[1].data = frame.write;
+    distChart.update();
+
+    // 2. Update Stats
+    const readSum = frame.read.reduce((a,b)=>a+b,0);
+    const writeSum = frame.write.reduce((a,b)=>a+b,0);
+    
+    // Mock calcs for stats
+    document.getElementById('read-iops').innerHTML = (readSum / 100).toFixed(1) + '<span class="stat-unit">k</span>';
+    document.getElementById('write-iops').innerHTML = (writeSum / 100).toFixed(1) + '<span class="stat-unit">k</span>';
+    
+    const avgWriteLat = frame.isAnomaly ? 1250 : 85;
+    document.getElementById('write-lat').innerHTML = avgWriteLat + '<span class="stat-unit">us</span>';
+    document.getElementById('write-qos').innerHTML = (avgWriteLat * 2.5).toFixed(0) + '<span class="stat-unit">us</span>';
+
+    document.getElementById('read-lat').innerHTML = '45<span class="stat-unit">us</span>';
+    document.getElementById('read-qos').innerHTML = '120<span class="stat-unit">us</span>';
+
+    // 3. Anomaly Detection
+    const analysisPanel = document.getElementById('analysis-panel');
+    const mainView = document.querySelector('.main-view');
+    
+    if (frame.isAnomaly) {
+        analysisPanel.style.display = 'block';
+        mainView.classList.add('alert-blink');
+        document.getElementById('status-text').innerText = "STATUS: ⚠️ ANOMALY DETECTED";
+        document.getElementById('status-text').style.color = "#ffbd00";
+        document.getElementById('anomaly-count').innerText = Math.floor(currentTimeIndex / 10) + 1;
+    } else {
+        analysisPanel.style.display = 'none';
+        mainView.classList.remove('alert-blink');
+        document.getElementById('status-text').innerText = "STATUS: NORMAL";
+        document.getElementById('status-text').style.color = "#00ffaa";
+    }
+
+    // 4. Update Timeline
+    // Show trailing 50 points
+    const start = Math.max(0, currentTimeIndex - 50);
+    const windowData = historyData.slice(start, currentTimeIndex + 1);
+    
+    timelineChart.data.labels = windowData.map(d => d.time);
+    timelineChart.data.datasets[0].data = windowData.map(d => d.isAnomaly ? 1200 : 80); // Mock logic
+    timelineChart.data.datasets[1].data = windowData.map(d => 40 + Math.random()*10);
+    timelineChart.update();
+}
+
+function togglePlay() {
+    if (isPlaying) {
+        clearInterval(playInterval);
+        isPlaying = false;
+        document.querySelector('button').innerText = "▶ PLAY LOG";
+    } else {
+        isPlaying = true;
+        document.querySelector('button').innerText = "⏸ PAUSE";
+        playInterval = setInterval(() => {
+            currentTimeIndex++;
+            if(currentTimeIndex >= historyData.length) currentTimeIndex = 0;
+            updateUI();
+        }, 100); // 100ms per frame
+    }
+}
+
+function generateNewData() {
+    generateMockData();
+}
+
+// Init
+generateMockData();
+updateUI();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internal Task Profiler - FTL Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f1115;
+            --bg-panel: #181b21;
+            --primary: #00f2ff;
+            --secondary: #7000ff;
+            --accent: #ff0055;
+            --text-main: #ffffff;
+            --text-muted: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+            --glass: rgba(24, 27, 33, 0.7);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Background Gradient Mesh */
+        .bg-mesh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background:
+                radial-gradient(circle at 10% 20%, rgba(112, 0, 255, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(0, 242, 255, 0.08) 0%, transparent 40%);
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            background: rgba(15, 17, 21, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            background: rgba(0, 242, 255, 0.1);
+            border: 1px solid rgba(0, 242, 255, 0.2);
+            color: var(--primary);
+            border-radius: 99px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        main {
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Grid Layouts */
+        .col-span-4 {
+            grid-column: span 4;
+        }
+
+        .col-span-6 {
+            grid-column: span 6;
+        }
+
+        .col-span-8 {
+            grid-column: span 8;
+        }
+
+        .col-span-12 {
+            grid-column: span 12;
+        }
+
+        .row-span-2 {
+            grid-row: span 2;
+        }
+
+        /* Timeline Visualization */
+        .timeline-container {
+            position: relative;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            padding-bottom: 20px;
+        }
+
+        .timeline-track {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            padding: 0 10px;
+        }
+
+        .task-block {
+            width: 100%;
+            border-radius: 2px;
+            transition: height 0.3s ease;
+        }
+
+        .task-gc {
+            background: var(--accent);
+            opacity: 0.8;
+        }
+
+        .task-io {
+            background: var(--primary);
+            opacity: 0.8;
+        }
+
+        .task-wl {
+            background: var(--secondary);
+            opacity: 0.8;
+        }
+
+        .legend {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Metrics */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .metric-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* Heatmap Mock */
+        .heatmap {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr);
+            gap: 2px;
+            aspect-ratio: 4/1;
+        }
+
+        .heat-cell {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1px;
+        }
+
+        /* Log Console */
+        .console {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 1rem;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .log-time {
+            color: var(--primary);
+        }
+
+        .log-type {
+            width: 60px;
+        }
+
+        .log-msg {
+            color: var(--text-main);
+        }
+
+        .type-info {
+            color: var(--primary);
+        }
+
+        .type-warn {
+            color: #ffcc00;
+        }
+
+        .type-err {
+            color: var(--accent);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-mesh"></div>
+
+    <header>
+        <div class="logo">
+            <div class="logo-icon">IT</div>
+            <h1>Internal Task Profiler</h1>
+        </div>
+        <div class="status-badge">
+            <div class="status-dot"></div>
+            Connected to FTL Simulator
+        </div>
+    </header>
+
+    <main>
+        <!-- Task Timeline -->
+        <div class="card col-span-8 row-span-2">
+            <div class="card-header">
+                <span class="card-title">Task Scheduler Timeline</span>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--primary)"></div>User I/O
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--accent)"></div>Garbage Collection
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--secondary)"></div>Wear Leveling
+                    </div>
+                </div>
+            </div>
+            <div class="timeline-container">
+                <div class="timeline-track" id="timelineTrack">
+                    <!-- JS will populate this -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Resource Usage -->
+        <div class="card col-span-4">
+            <div class="card-header">
+                <span class="card-title">FTL Resources</span>
+            </div>
+            <div class="metric-grid">
+                <div class="metric-item">
+                    <div class="metric-value" style="color: var(--primary)">12%</div>
+                    <div class="metric-label">CPU Usage</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" style="color: var(--secondary)">482MB</div>
+                    <div class="metric-label">DRAM Used</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value">45</div>
+                    <div class="metric-label">Active Tasks</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value">12ms</div>
+                    <div class="metric-label">Avg Latency</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wear Leveling Map -->
+        <div class="card col-span-4">
+            <div class="card-header">
+                <span class="card-title">Wear Leveling Heatmap</span>
+            </div>
+            <div class="heatmap" id="heatmap">
+                <!-- JS will populate this -->
+            </div>
+        </div>
+
+        <!-- System Logs -->
+        <div class="card col-span-12">
+            <div class="card-header">
+                <span class="card-title">System Event Log</span>
+            </div>
+            <div class="console" id="console">
+                <div class="log-entry">
+                    <span class="log-time">10:42:01.120</span>
+                    <span class="log-type type-info">INFO</span>
+                    <span class="log-msg">GC Triggered on Block 1024 (Free pages < 5%)</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">10:42:01.150</span>
+                    <span class="log-type type-info">INFO</span>
+                    <span class="log-msg">Wear Leveling: Swapped Block 45 with Block 2099</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">10:42:02.005</span>
+                    <span class="log-type type-warn">WARN</span>
+                    <span class="log-msg">Write amplification factor increased to 2.1</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Mock Data Generation for Visuals
+
+        // 1. Populate Timeline
+        const track = document.getElementById('timelineTrack');
+        const taskTypes = ['task-io', 'task-gc', 'task-wl'];
+
+        for (let i = 0; i < 60; i++) {
+            const bar = document.createElement('div');
+            bar.className = `task-block ${taskTypes[Math.floor(Math.random() * taskTypes.length)]}`;
+            bar.style.height = `${Math.random() * 80 + 20}%`;
+            bar.style.width = '100%';
+            track.appendChild(bar);
+        }
+
+        // 2. Populate Heatmap
+        const heatmap = document.getElementById('heatmap');
+        for (let i = 0; i < 80; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'heat-cell';
+            const wear = Math.random();
+            // Color from green (low wear) to red (high wear)
+            const r = Math.floor(wear * 255);
+            const g = Math.floor((1 - wear) * 255);
+            cell.style.backgroundColor = `rgba(${r}, ${g}, 50, 0.6)`;
+            heatmap.appendChild(cell);
+        }
+
+        // 3. Animate Timeline
+        setInterval(() => {
+            if (track.children.length > 0) {
+                track.removeChild(track.firstElementChild);
+                const bar = document.createElement('div');
+                bar.className = `task-block ${taskTypes[Math.floor(Math.random() * taskTypes.length)]}`;
+                bar.style.height = `${Math.random() * 80 + 20}%`;
+                bar.style.width = '100%';
+                track.appendChild(bar);
+            }
+        }, 500);
+
+        // 4. Add Logs
+        const consoleDiv = document.getElementById('console');
+        const messages = [
+            "Background GC started on Plane 2",
+            "Host Write: LBA 0x4000-0x4008",
+            "Mapping Table Update: Page 552 -> Block 12",
+            "Read Reclaim check initiated"
+        ];
+
+        setInterval(() => {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}`;
+
+            entry.innerHTML = `
+                <span class="log-time">${timeStr}</span>
+                <span class="log-type type-info">INFO</span>
+                <span class="log-msg">${messages[Math.floor(Math.random() * messages.length)]}</span>
+            `;
+
+            consoleDiv.appendChild(entry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+
+            if (consoleDiv.children.length > 20) {
+                consoleDiv.removeChild(consoleDiv.firstElementChild);
+            }
+        }, 2000);
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 기반 SSD 성능 분석 툴 PoC</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e1a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .slide-container {
+            width: 100vw;
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+        }
+
+        .slide {
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 4rem;
+            scroll-snap-align: start;
+            position: relative;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 30%, rgba(0, 217, 255, 0.03), transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 68, 102, 0.03), transparent 50%);
+            pointer-events: none;
+        }
+
+        /* Title Slide */
+        .slide-title {
+            background: linear-gradient(135deg, #1a1f2e 0%, #0f1219 100%);
+        }
+
+        .slide-title h1 {
+            font-size: 4rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        .slide-title .subtitle {
+            font-size: 1.5rem;
+            color: #7a8ba0;
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .author {
+            font-size: 1.2rem;
+            color: #00d9ff;
+            margin-top: 2rem;
+        }
+
+        /* Content Slides */
+        .slide-content {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #00d9ff;
+        }
+
+        h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #00ff88;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            margin-top: 2rem;
+        }
+
+        .card {
+            background: rgba(20, 25, 41, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-list {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .feature-list li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 1.1rem;
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            color: #00ff88;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+
+        .code-block {
+            background: #0f1219;
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 8px;
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+
+        .highlight {
+            color: #00d9ff;
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 217, 255, 0.2);
+            border: 1px solid rgba(0, 217, 255, 0.5);
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 0.5rem;
+            font-weight: 600;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .tech-item {
+            background: rgba(0, 217, 255, 0.1);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .screenshot {
+            width: 100%;
+            border-radius: 12px;
+            border: 2px solid rgba(0, 217, 255, 0.3);
+            margin-top: 2rem;
+        }
+
+        .nav-dots {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 100;
+        }
+
+        .nav-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .nav-dot.active {
+            background: #00d9ff;
+            transform: scale(1.3);
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #7a8ba0;
+            font-size: 0.9rem;
+        }
+
+        .emoji {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .problem-solution {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 2rem;
+            align-items: center;
+            margin-top: 2rem;
+        }
+
+        .problem {
+            background: rgba(255, 68, 102, 0.1);
+            border: 1px solid rgba(255, 68, 102, 0.3);
+            padding: 2rem;
+            border-radius: 12px;
+        }
+
+        .solution {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            padding: 2rem;
+            border-radius: 12px;
+        }
+
+        .arrow {
+            font-size: 3rem;
+            color: #00d9ff;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(0, 217, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 217, 255, 0.2);
+        }
+
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #00d9ff;
+        }
+
+        .stat-label {
+            margin-top: 0.5rem;
+            color: #7a8ba0;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="slide-container">
+        <!-- Slide 1: Title -->
+        <div class="slide slide-title">
+            <div class="emoji">🚀</div>
+            <h1>AI 기반 SSD 성능 분석 툴</h1>
+            <div class="subtitle">Proof of Concept Presentation</div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value">2</div>
+                    <div class="stat-label">Core Tools</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">100%</div>
+                    <div class="stat-label">보안 준수</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">TDD</div>
+                    <div class="stat-label">개발 방법론</div>
+                </div>
+            </div>
+            <div class="author">FTL Engineering Team</div>
+        </div>
+
+        <!-- Slide 2: Problem Statement -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2>❌ 현재 문제점</h2>
+                <div class="problem-solution">
+                    <div class="problem">
+                        <h3 style="color: #ff4466;">Before</h3>
+                        <ul class="feature-list">
+                            <li style="border-color: rgba(255, 68, 102, 0.2);">Windows XML/DLL 툴 (Linux 부적합)</li>
+                            <li style="border-color: rgba(255, 68, 102, 0.2);">WLG 벤치마크 2-7일 소요</li>
+                            <li style="border-color: rgba(255, 68, 102, 0.2);">실시간 모니터링 불가</li>
+                            <li style="border-color: rgba(255, 68, 102, 0.2);">파워 최적화 방법 불명확</li>
+                        </ul>
+                    </div>
+                    <div class="arrow">→</div>
+                    <div class="solution">
+                        <h3>After (PoC)</h3>
+                        <ul class="feature-list">
+                            <li>Python + fio (Linux 네이티브)</li>
+                            <li>실시간 대시보드</li>
+                            <li>라이브 IOPS/Power 모니터링</li>
+                            <li>AI 기반 최적화 제안</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Solution Overview -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2>💡 솔루션 개요</h2>
+                <div class="two-column">
+                    <div class="card">
+                        <div class="emoji">📊</div>
+                        <h3>Tool #1: WLG Benchmark Suite</h3>
+                        <p style="color: #7a8ba0; margin-bottom: 1rem;">
+                            Linux 기반 실시간 벤치마크 & 모니터링 시스템
+                        </p>
+                        <ul class="feature-list">
+                            <li>FIO 자동 생성</li>
+                            <li>PMU 파워 측정</li>
+                            <li>실시간 대시보드</li>
+                            <li>Pass/Fail 자동 판정</li>
+                        </ul>
+                        <div class="badge">Python + fio</div>
+                        <div class="badge">Chart.js</div>
+                    </div>
+                    <div class="card">
+                        <div class="emoji">🤖</div>
+                        <h3>Tool #2: AI Power Modeling</h3>
+                        <p style="color: #7a8ba0; margin-bottom: 1rem;">
+                            머신러닝 기반 파워 예측 & 최적화 추천
+                        </p>
+                        <ul class="feature-list">
+                            <li>선형 회귀 모델 (sklearn)</li>
+                            <li>파워 소비 예측</li>
+                            <li>WLG 최적화 제안</li>
+                            <li>3D 인터랙티브 시각화</li>
+                        </ul>
+                        <div class="badge">scikit-learn</div>
+                        <div class="badge">Plotly</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Tool #1 Details -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2>📊 Tool #1: WLG Benchmark Suite</h2>
+                <h3>아키텍처</h3>
+                <div class="code-block">
+                    config.json (워크로드 정의)
+                    ↓
+                    fio_generator.py (FIO 스크립트 자동 생성)
+                    ↓
+                    benchmark_runner.py (실행 + PMU 모니터링)
+                    ↓
+                    realtime_dashboard.html (실시간 IOPS/Power 그래프)
+                </div>
+                <h3>핵심 기능</h3>
+                <div class="two-column">
+                    <div>
+                        <div class="code-block">
+                            {
+                            "profile_name": "WLG_E1S_Profile0",
+                            "io_patterns": [
+                            {"type": "read", "block_size": "4k",
+                            "percentage": 42},
+                            {"type": "read", "block_size": "128k",
+                            "percentage": 58}
+                            ],
+                            "power_limit_watts": 11
+                            }
+                        </div>
+                    </div>
+                    <div>
+                        <ul class="feature-list">
+                            <li><span class="highlight">완전 추상화</span> (내부 정보 zero)</li>
+                            <li><span class="highlight">TDD</span> 테스트 우선 개발</li>
+                            <li><span class="highlight">실시간</span> 모니터링</li>
+                            <li><span class="highlight">PMU</span> 통합 준비</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Tool #2 Details -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2>🤖 Tool #2: AI Power Modeling</h2>
+                <h3>모델 수식</h3>
+                <div class="code-block" style="font-size: 1.2rem; text-align: center;">
+                    Power (W) = <span class="highlight">a</span> × Read_MB/s + <span class="highlight">b</span> ×
+                    Write_MB/s + <span class="highlight">c</span> × WAF + <span class="highlight">d</span>
+                </div>
+                <h3>워크플로우</h3>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="emoji" style="font-size: 2rem;">📊</div>
+                        <div class="stat-label">1. 데이터 수집</div>
+                        <p style="color: #7a8ba0; margin-top: 0.5rem; font-size: 0.9rem;">다양한 R/W 비율 측정</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="emoji" style="font-size: 2rem;">🧠</div>
+                        <div class="stat-label">2. 모델 훈련</div>
+                        <p style="color: #7a8ba0; margin-top: 0.5rem; font-size: 0.9rem;">선형 회귀 (sklearn)</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="emoji" style="font-size: 2rem;">💡</div>
+                        <div class="stat-label">3. 최적화 제안</div>
+                        <p style="color: #7a8ba0; margin-top: 0.5rem; font-size: 0.9rem;">"Write 20% 줄이세요"</p>
+                    </div>
+                </div>
+                <div class="code-block" style="margin-top: 2rem;">
+                    <span class="highlight">📈 예시 출력:</span>
+                    Current: 2000MB/s read, 3000MB/s write, WAF=2.5
+                    Predicted Power: <span style="color: #ff4466;">12.5W</span> (❌ 1.5W over 11W target)
+
+                    💡 Recommendation:
+                    Reduce writes to 2400MB/s → <span style="color: #00ff88;">10.9W</span> ✓
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Tech Stack -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2>🛠️ 기술 스택</h2>
+                <h3>Backend</h3>
+                <div class="tech-stack">
+                    <div class="tech-item">Python 3</div>
+                    <div class="tech-item">scikit-learn</div>
+                    <div class="tech-item">NumPy</div>
+                    <div class="tech-item">fio</div>
+                    <div class="tech-item">pytest (TDD)</div>
+                </div>
+                <h3 style="margin-top: 2rem;">Frontend</h3>
+                <div class="tech-stack">
+                    <div class="tech-item">Chart.js</div>
+                    <div class="tech-item">Plotly.js</div>
+                    <div class="tech-item">HTML5/CSS3</div>
+                    <div class="tech-item">Vanilla JavaScript</div>
+                </div>
+                <h3 style="margin-top: 2rem;">개발 원칙</h3>
+                <div class="two-column">
+                    <div class="card">
+                        <h3 style="font-size: 1.2rem;">🔐 보안</h3>
+                        <p style="color: #7a8ba0;">내부 정보 완전 추상화<br>config 기반 설정</p>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size: 1.2rem;">🧪 TDD</h3>
+                        <p style="color: #7a8ba0;">테스트 먼저 작성<br>모든 함수 검증</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Demo Screenshots -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2>🎬 데모</h2>
+                <h3>WLG Benchmark Dashboard</h3>
+                <div style="background: rgba(0,217,255,0.05); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                    <p style="color: #7a8ba0;">실시간 IOPS, Throughput, Latency, Power 그래프</p>
+                    <p style="color: #00d9ff; margin-top: 0.5rem;">→ wlg_benchmark/realtime_dashboard.html</p>
+                </div>
+
+                <h3 style="margin-top: 2rem;">AI Power Model Visualizer</h3>
+                <div style="background: rgba(0,255,136,0.05); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                    <p style="color: #7a8ba0;">3D 인터랙티브 파워 예측 시각화</p>
+                    <p style="color: #00ff88; margin-top: 0.5rem;">→ power_modeling/model_visualizer.html</p>
+                </div>
+
+                <div class="code-block" style="margin-top: 2rem;">
+                    <span class="highlight"># 실행 방법</span>
+
+                    <span style="color: #7a8ba0;"># Tool #1: WLG Benchmark</span>
+                    cd wlg_benchmark
+                    python3 benchmark_runner.py config.json
+                    firefox realtime_dashboard.html
+
+                    <span style="color: #7a8ba0;"># Tool #2: Power Modeling</span>
+                    cd power_modeling
+                    python3 data_collector.py
+                    python3 power_model.py
+                    firefox model_visualizer.html
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: PoC Value -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2>✨ PoC 가치</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value">2-7일</div>
+                        <div class="stat-label">→ 실시간</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">11W</div>
+                        <div class="stat-label">WLG 타겟</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">100%</div>
+                        <div class="stat-label">추상화</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem;">핵심 성과</h3>
+                <div class="two-column">
+                    <div class="card">
+                        <h3 style="font-size: 1.2rem;">🎯 기술 검증</h3>
+                        <ul class="feature-list">
+                            <li>AI 기반 파워 모델링 가능성 증명</li>
+                            <li>Linux 환경 실시간 모니터링 구현</li>
+                            <li>보안 준수하며 외부 도구 활용</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size: 1.2rem;">📈 실용성</h3>
+                        <ul class="feature-list">
+                            <li>구체적인 최적화 제안</li>
+                            <li>직관적인 시각화</li>
+                            <li>프로덕션 통합 준비 완료</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: Next Steps -->
+        <div class="slide">
+            <div class="slide-content">
+                <h2>🚀 다음 단계</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="emoji" style="font-size: 2rem;">🔌</div>
+                        <div class="stat-label">1. PMU 통합</div>
+                        <p style="color: #7a8ba0; margin-top: 0.5rem; font-size: 0.9rem;">실제 파워 측정 연동</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="emoji" style="font-size: 2rem;">📊</div>
+                        <div class="stat-label">2. 실제 데이터</div>
+                        <p style="color: #7a8ba0; margin-top: 0.5rem; font-size: 0.9rem;">내부 펌웨어 로그 활용</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="emoji" style="font-size: 2rem;">🧠</div>
+                        <div class="stat-label">3. 모델 고도화</div>
+                        <p style="color: #7a8ba0; margin-top: 0.5rem; font-size: 0.9rem;">딥러닝 기반 예측</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem;">프로덕션 준비 사항</h3>
+                <div class="code-block">
+                    <span class="highlight">✓ 완료:</span>
+                    - 추상화된 인터페이스 설계
+                    - TDD 기반 안정성 확보
+                    - 보안 원칙 준수
+                    - 실시간 모니터링 구현
+
+                    <span class="highlight">→ 필요:</span>
+                    - 실제 PMU 스크립트 연동 (pmu_reader.py)
+                    - FIO 실행 활성화 (benchmark_runner.py)
+                    - 내부 환경 배포 및 테스트
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10: Thank You -->
+        <div class="slide slide-title">
+            <div class="emoji">🎉</div>
+            <h1 style="font-size: 3rem;">감사합니다</h1>
+            <div class="subtitle">Questions & Discussion</div>
+            <div class="tech-stack" style="margin-top: 3rem;">
+                <div class="tech-item">wlg_benchmark/</div>
+                <div class="tech-item">power_modeling/</div>
+                <div class="tech-item">GitHub (준비중)</div>
+            </div>
+            <div class="footer">FTL Engineering Team | AI-Powered SSD Analysis PoC</div>
+        </div>
+    </div>
+
+    <!-- Navigation Dots -->
+    <div class="nav-dots" id="navDots"></div>
+
+    <script>
+        // Generate navigation dots
+        const slides = document.querySelectorAll('.slide');
+        const navDots = document.getElementById('navDots');
+
+        slides.forEach((slide, index) => {
+            const dot = document.createElement('div');
+            dot.className = 'nav-dot';
+            if (index === 0) dot.classList.add('active');
+            dot.addEventListener('click', () => {
+                slide.scrollIntoView({ behavior: 'smooth' });
+            });
+            navDots.appendChild(dot);
+        });
+
+        // Update active dot on scroll
+        const container = document.querySelector('.slide-container');
+        container.addEventListener('scroll', () => {
+            const scrollPosition = container.scrollTop;
+            const slideHeight = window.innerHeight;
+            const currentSlide = Math.round(scrollPosition / slideHeight);
+
+            document.querySelectorAll('.nav-dot').forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentSlide);
+            });
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const currentScroll = container.scrollTop;
+            const slideHeight = window.innerHeight;
+
+            if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+                container.scrollTop = currentScroll + slideHeight;
+            } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                container.scrollTop = currentScroll - slideHeight;
+            }
+        });
+    </script>
+</body>
+
+</html>

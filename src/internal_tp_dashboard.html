@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internal FTL Task Profiler</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0a0e14;
+            --card-bg: #161b22;
+            --text-main: #e6e8eb;
+            --text-muted: #8b949e;
+            --accent-cyan: #00d9ff;
+            --accent-orange: #ff6b35;
+            --accent-green: #2ea043;
+            --accent-red: #da3633;
+            --border-color: #30363d;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background-color: var(--card-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+        }
+
+        .sidebar-header {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+            color: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .dump-list {
+            list-style: none;
+            padding: 0;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .dump-item {
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .dump-item:hover {
+            background-color: #21262d;
+        }
+
+        .dump-item.active {
+            background-color: #21262d;
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .dump-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .header-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-ai {
+            background: linear-gradient(45deg, var(--accent-cyan), #0077ff);
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.1s;
+        }
+
+        .btn-ai:active {
+            transform: scale(0.98);
+        }
+
+        .btn-ai:hover {
+            opacity: 0.9;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .metric-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .metric-title {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .metric-trend {
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+
+        .trend-up {
+            color: var(--accent-green);
+        }
+
+        .trend-down {
+            color: var(--accent-red);
+        }
+
+        /* Charts */
+        .chart-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            height: 300px;
+            position: relative;
+        }
+
+        /* AI Analysis Panel */
+        .ai-panel {
+            background-color: rgba(0, 217, 255, 0.05);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 8px;
+            padding: 1rem;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .ai-header {
+            color: var(--accent-cyan);
+            font-weight: bold;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .insight-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--text-muted);
+            border-radius: 0 4px 4px 0;
+        }
+
+        .insight-critical {
+            border-left-color: var(--accent-red);
+        }
+
+        .insight-warning {
+            border-left-color: var(--accent-orange);
+        }
+
+        .insight-title {
+            font-weight: bold;
+            margin-bottom: 0.3rem;
+            display: block;
+        }
+
+        .insight-desc {
+            font-size: 0.9rem;
+            color: #c9d1d9;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <span>⚡ FTL Profiler</span>
+        </div>
+        <ul class="dump-list" id="dumpList">
+            <!-- JS will populate this -->
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="header-area">
+            <div>
+                <h2 style="margin:0">Performance Analysis</h2>
+                <div style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.3rem;">
+                    Target: NVMe SSD (Internal FW v2.5.1)
+                </div>
+            </div>
+            <button class="btn-ai" onclick="runAIAnalysis()">
+                <span>🤖</span> Run AI Analysis
+            </button>
+        </div>
+
+        <!-- Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">GC Efficiency</div>
+                <div class="metric-value" id="val-gc">0.00</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">WAF (Write Amp)</div>
+                <div class="metric-value" id="val-waf">0.00</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">L2P Cache Hit</div>
+                <div class="metric-value" id="val-l2p">0.00%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Buffer Usage (Avg)</div>
+                <div class="metric-value" id="val-buf">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Core Balance</div>
+                <div class="metric-value" id="val-core">Good</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Free Blocks</div>
+                <div class="metric-value" id="val-free">0</div>
+            </div>
+        </div>
+
+        <!-- AI Panel -->
+        <div class="ai-panel" id="aiPanel">
+            <div class="ai-header">
+                <span>✨ AI Analysis Results</span>
+            </div>
+            <div id="aiInsights"></div>
+        </div>
+
+        <!-- Charts -->
+        <div class="chart-container">
+            <canvas id="timelineChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="coreChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // --- Mock Data Generator ---
+        function generateMockData(seed) {
+            const data = [];
+            const timestamps = 100;
+            let gcTokens = 15;
+            let waf = 1.5;
+
+            for (let i = 0; i < timestamps; i++) {
+                // Simulate random fluctuations
+                const isGC = Math.random() > 0.8;
+                const qcc = Math.floor(Math.random() * 100) + 50;
+                const qif = Math.floor(Math.random() * 80) + 20;
+
+                // GC Logic simulation
+                if (isGC) gcTokens = Math.max(0, gcTokens - 1);
+                else if (Math.random() > 0.5) gcTokens = Math.min(20, gcTokens + 1);
+
+                // WAF simulation
+                if (gcTokens < 5) waf += 0.1;
+                else waf = Math.max(1.0, waf - 0.05);
+
+                data.push({
+                    timestamp_ms: i * 8,
+                    qcc_count: qcc,
+                    qif_count: qif,
+                    gc_tokens: gcTokens,
+                    waf: parseFloat(waf.toFixed(2)),
+                    int_write_buf: Math.floor(Math.random() * 60),
+                    fcore_runtime: Math.floor(Math.random() * 800) + 100,
+                    qcore_runtime: Math.floor(Math.random() * 400) + 50,
+                    l2p_hit: Math.random() > 0.1 ? 1 : 0
+                });
+            }
+            return data;
+        }
+
+        // --- State ---
+        let currentData = [];
+        let charts = {};
+
+        // --- Init ---
+        window.onload = function () {
+            // Populate Sidebar
+            const list = document.getElementById('dumpList');
+            for (let i = 1; i <= 10; i++) {
+                const li = document.createElement('li');
+                li.className = 'dump-item';
+                li.innerHTML = `<div>tp_dump_00${i}.bin</div><div class="dump-meta">2025-01-06 14:0${i}</div>`;
+                li.onclick = () => loadDump(i, li);
+                list.appendChild(li);
+            }
+
+            // Load first dump
+            loadDump(1, list.firstChild);
+        };
+
+        function loadDump(id, element) {
+            // UI Update
+            document.querySelectorAll('.dump-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            document.getElementById('aiPanel').style.display = 'none';
+
+            // Generate Data
+            currentData = generateMockData(id);
+
+            // Update Metrics
+            updateMetrics(currentData);
+
+            // Render Charts
+            renderCharts(currentData);
+        }
+
+        function updateMetrics(data) {
+            // Simple averages/lasts
+            const last = data[data.length - 1];
+            const avgWaf = data.reduce((a, b) => a + b.waf, 0) / data.length;
+            const avgL2p = (data.reduce((a, b) => a + b.l2p_hit, 0) / data.length) * 100;
+
+            document.getElementById('val-gc').innerText = (data.reduce((a, b) => a + b.gc_tokens, 0) / data.length).toFixed(1);
+            document.getElementById('val-waf').innerText = avgWaf.toFixed(2);
+            document.getElementById('val-l2p').innerText = avgL2p.toFixed(1) + '%';
+            document.getElementById('val-buf').innerText = last.int_write_buf;
+            document.getElementById('val-free').innerText = Math.floor(120 - avgWaf * 10); // Fake logic
+        }
+
+        function renderCharts(data) {
+            const ctx1 = document.getElementById('timelineChart').getContext('2d');
+            const ctx2 = document.getElementById('coreChart').getContext('2d');
+
+            if (charts.timeline) charts.timeline.destroy();
+            if (charts.core) charts.core.destroy();
+
+            // Chart 1: Timeline (QCC, QIF, GC)
+            charts.timeline = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.timestamp_ms + 'ms'),
+                    datasets: [
+                        {
+                            label: 'QCC Packets',
+                            data: data.map(d => d.qcc_count),
+                            borderColor: '#00d9ff',
+                            borderWidth: 1,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'GC Tokens',
+                            data: data.map(d => d.gc_tokens * 10), // Scale for visibility
+                            borderColor: '#ff6b35',
+                            borderWidth: 1,
+                            pointRadius: 0,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        title: { display: true, text: 'Packet Traffic & GC Status', color: '#e6e8eb' },
+                        legend: { labels: { color: '#e6e8eb' } }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } },
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+                    }
+                }
+            });
+
+            // Chart 2: Core Runtime
+            charts.core = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.timestamp_ms + 'ms'),
+                    datasets: [
+                        {
+                            label: 'FCore Runtime (us)',
+                            data: data.map(d => d.fcore_runtime),
+                            backgroundColor: '#2ea043'
+                        },
+                        {
+                            label: 'QCore Runtime (us)',
+                            data: data.map(d => d.qcore_runtime),
+                            backgroundColor: '#a371f7'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, ticks: { display: false } },
+                        y: { stacked: true, ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+                    },
+                    plugins: {
+                        title: { display: true, text: 'Core Utilization Stack', color: '#e6e8eb' },
+                        legend: { labels: { color: '#e6e8eb' } }
+                    }
+                }
+            });
+        }
+
+        // --- AI Analysis Simulation ---
+        function runAIAnalysis() {
+            const panel = document.getElementById('aiPanel');
+            const container = document.getElementById('aiInsights');
+
+            // Show loading
+            panel.style.display = 'block';
+            container.innerHTML = '<div style="color:#8b949e">🤖 Analyzing patterns...</div>';
+
+            setTimeout(() => {
+                // Rule-based Analysis on currentData
+                const insights = [];
+
+                // Rule 1: GC Token Depletion
+                const minGc = Math.min(...currentData.map(d => d.gc_tokens));
+                if (minGc < 5) {
+                    insights.push({
+                        type: 'critical',
+                        title: '⚠️ Critical: GC Token Depletion',
+                        desc: `GC tokens dropped to ${minGc} at 240ms. This caused a WAF increase to 3.2. Recommendation: Adjust GC threshold.`
+                    });
+                }
+
+                // Rule 2: Buffer Saturation
+                const maxBuf = Math.max(...currentData.map(d => d.int_write_buf));
+                if (maxBuf > 50) {
+                    insights.push({
+                        type: 'warning',
+                        title: '⚠️ Warning: Buffer Saturation',
+                        desc: `Internal write buffer reached ${maxBuf} entries. Potential back-pressure on Host Write.`
+                    });
+                }
+
+                // Rule 3: Core Imbalance
+                insights.push({
+                    type: 'warning',
+                    title: '⚖️ Info: Core Imbalance',
+                    desc: 'FCore is 3.5x busier than QCore. Consider offloading simple tasks to QCore.'
+                });
+
+                // Render
+                container.innerHTML = insights.map(i => `
+                <div class="insight-item insight-${i.type}">
+                    <span class="insight-title">${i.title}</span>
+                    <span class="insight-desc">${i.desc}</span>
+                </div>
+            `).join('');
+
+            }, 1500); // Fake delay
+        }
+    </script>
+
+</body>
+
+</html>

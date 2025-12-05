@@ -1,0 +1,51 @@
+{
+    "_comment": "========== 이상 감지 임계값 설정 ==========",
+    "_usage": "내부 기준에 맞게 값을 수정하세요",
+    
+    "gc_tokens": {
+        "critical_min": 3,
+        "warning_min": 5,
+        "description": "GC Token이 이 값 이하면 경고 (Block allocation stall 위험)"
+    },
+    
+    "int_write_buf": {
+        "critical_max": 58,
+        "warning_max": 50,
+        "description": "Internal Write Buffer 사용량 (64가 최대라고 가정)"
+    },
+    
+    "ext_read_buf": {
+        "critical_min": 5,
+        "warning_min": 10,
+        "description": "External Read Buffer 고갈 시 Host Read stall"
+    },
+    
+    "fcore_runtime_us": {
+        "critical_max": 900,
+        "warning_max": 700,
+        "description": "FCore 런타임 상한 (마이크로초)"
+    },
+    
+    "qcore_runtime_us": {
+        "critical_max": 800,
+        "warning_max": 600,
+        "description": "QCore 런타임 상한"
+    },
+    
+    "qcc_count": {
+        "spike_threshold_sigma": 2.0,
+        "description": "평균 대비 N 시그마 초과 시 스파이크로 판단"
+    },
+    
+    "qif_count": {
+        "spike_threshold_sigma": 2.5,
+        "description": "QIF 트래픽 스파이크 감지"
+    },
+    
+    "_notes": [
+        "critical: 즉시 조치 필요",
+        "warning: 주의 관찰 필요",
+        "sigma 기반: 통계적 이상치 감지 (2σ = 상위 2.5%)"
+    ]
+}
+

@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTL Enterprise SSD Analysis Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-dark: #0f1219;
+            --bg-panel: #1a1f2e;
+            --bg-card: #23293b;
+            --primary: #3b82f6;
+            /* Blue */
+            --primary-glow: rgba(59, 130, 246, 0.3);
+            --accent: #f43f5e;
+            /* Red/Pink for Critical */
+            --success: #10b981;
+            /* Green */
+            --warning: #f59e0b;
+            /* Orange */
+            --purple: #8b5cf6;
+            /* Testing */
+            --text-main: #ffffff;
+            --text-secondary: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --card-radius: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Navigation */
+        nav {
+            height: 70px;
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--purple), var(--primary));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: white;
+        }
+
+        .stats-summary {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-val {
+            font-size: 1.25rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* Main Layout */
+        .container {
+            display: flex;
+            flex: 1;
+            padding: 2rem;
+            gap: 2rem;
+            overflow: hidden;
+            height: calc(100vh - 70px);
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .sidebar {
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .search-wrapper {
+            flex: 1;
+            background: var(--bg-panel);
+            border-radius: 99px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            border: 1px solid var(--border);
+            transition: border-color 0.2s;
+        }
+
+        .search-wrapper:focus-within {
+            border-color: var(--primary);
+        }
+
+        .search-wrapper input {
+            background: none;
+            border: none;
+            outline: none;
+            color: var(--text-main);
+            width: 100%;
+            margin-left: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .chip {
+            padding: 0.5rem 1rem;
+            border-radius: 99px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .chip:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .chip.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .chip-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* Product Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--card-radius);
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card-top {
+            display: flex;
+            jsutify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .card-title-group {
+            flex: 1;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .card-subtitle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .status-pill {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .pill-critical {
+            background: rgba(244, 63, 94, 0.2);
+            color: var(--accent);
+        }
+
+        .pill-analyzing {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .pill-stable {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .pill-testing {
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--purple);
+        }
+
+        .capacity-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cap-chip {
+            padding: 0.25rem 0.75rem;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+
+        .cap-chip.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .task-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+        }
+
+        .task-name {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        .task-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-left: 1.5rem;
+        }
+
+        .progress-track {
+            height: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1s ease;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border);
+            padding-top: 1rem;
+            margin-top: auto;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .time-ago {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        /* Sidebar */
+        .sidebar-card {
+            background: var(--bg-card);
+            border-radius: var(--card-radius);
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .sidebar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .activity-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 0.75rem;
+            position: relative;
+        }
+
+        .activity-item:not(:last-child)::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 16px;
+            bottom: -16px;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .activity-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-top: 4px;
+            flex-shrink: 0;
+            z-index: 1;
+        }
+
+        .activity-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .act-text {
+            font-size: 0.875rem;
+        }
+
+        .act-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <div class="brand">
+            <div class="brand-icon">FTL</div>
+            Enterprise SSD Analysis Hub
+        </div>
+        <div class="stats-summary">
+            <div class="stat-item">
+                <div class="stat-val" style="color: var(--primary)">12</div>
+                <div class="stat-label">Active Products</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" style="color: var(--warning)">4</div>
+                <div class="stat-label">Analyzing</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" style="color: var(--accent)">2</div>
+                <div class="stat-label">Critical</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-val" style="color: var(--success)">6</div>
+                <div class="stat-label">Stable</div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Main Dashboard Area -->
+        <div class="main-content">
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <div class="search-wrapper">
+                    <i data-lucide="search" style="color: var(--text-secondary); width: 20px;"></i>
+                    <input type="text" placeholder="제품명, 고객사, 이슈 검색...">
+                </div>
+                <div class="filter-chips">
+                    <button class="chip active">전체</button>
+                    <button class="chip"><span class="chip-dot" style="background: var(--warning)"></span>분석중</button>
+                    <button class="chip"><span class="chip-dot"
+                            style="background: var(--accent)"></span>Critical</button>
+                    <button class="chip"><span class="chip-dot"
+                            style="background: var(--success)"></span>Stable</button>
+                    <button class="chip"><span class="chip-dot"
+                            style="background: var(--purple)"></span>Testing</button>
+                </div>
+            </div>
+
+            <div class="grid">
+                <!-- BM1743 Card -->
+                <div class="card" style="border-top: 3px solid var(--accent)">
+                    <div class="card-top">
+                        <div class="card-title-group">
+                            <h2 class="card-title">BM1743</h2>
+                            <div class="card-subtitle"><i data-lucide="building"
+                                    style="width:14px; margin-right:4px;"></i> Tesla</div>
+                        </div>
+                        <span class="status-pill pill-critical">Critical</span>
+                    </div>
+
+                    <div class="capacity-row">
+                        <span class="cap-chip">16TB</span>
+                        <span class="cap-chip active">32TB</span>
+                        <span class="cap-chip">64TB</span>
+                    </div>
+
+                    <div class="task-list">
+                        <div class="task-item">
+                            <div class="task-header">
+                                <span class="task-name"><i data-lucide="zap"
+                                        style="width:14px; color:var(--accent)"></i> 파워 이슈 분석</span>
+                                <span style="color:var(--accent)">35%</span>
+                            </div>
+                            <div class="task-desc">Power Loss 후 데이터 손실</div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: 35%; background: var(--accent)"></div>
+                            </div>
+                        </div>
+                        <div class="task-item">
+                            <div class="task-header">
+                                <span class="task-name"><i data-lucide="microscope"
+                                        style="width:14px; color:var(--primary)"></i> WAF 분석</span>
+                                <span style="color:var(--primary)">80%</span>
+                            </div>
+                            <div class="task-desc">목표: 2.0 이하</div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: 80%; background: var(--primary)"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="user-info">
+                            <div class="user-avatar" style="background: #ef4444">장</div>
+                            장혜진
+                        </div>
+                        <div class="time-ago">
+                            <i data-lucide="clock" style="width:12px;"></i> 10분 전
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BM1753 MSFT Card -->
+                <div class="card" style="border-top: 3px solid var(--warning)">
+                    <div class="card-top">
+                        <div class="card-title-group">
+                            <h2 class="card-title">BM1753</h2>
+                            <div class="card-subtitle"><i data-lucide="building"
+                                    style="width:14px; margin-right:4px;"></i> Microsoft</div>
+                        </div>
+                        <span class="status-pill pill-analyzing">Analyzing</span>
+                    </div>
+
+                    <div class="capacity-row">
+                        <span class="cap-chip">32TB</span>
+                        <span class="cap-chip">64TB</span>
+                        <span class="cap-chip active" style="background: var(--primary)">128TB</span>
+                    </div>
+
+                    <div class="task-list">
+                        <div class="task-item">
+                            <div class="task-header">
+                                <span class="task-name"><i data-lucide="activity"
+                                        style="width:14px; color:var(--warning)"></i> WLG 성능 평가</span>
+                                <span style="color:var(--warning)">42%</span>
+                            </div>
+                            <div class="task-desc">Profile 0-7 진행 중 (7일 예상)</div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: 42%; background: var(--warning)"></div>
+                            </div>
+                        </div>
+                        <div class="task-item">
+                            <div class="task-header">
+                                <span class="task-name"><i data-lucide="search"
+                                        style="width:14px; color:var(--success)"></i> Precondition</span>
+                                <span style="color:var(--success)">100%</span>
+                            </div>
+                            <div class="task-desc">48시간 / 128TB</div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: 100%; background: var(--success)"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="user-info">
+                            <div class="user-avatar" style="background: #3b82f6">박</div>
+                            박성훈
+                        </div>
+                        <div class="time-ago">
+                            <i data-lucide="clock" style="width:12px;"></i> 1시간 전
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BM1753 CNS Card -->
+                <div class="card" style="border-top: 3px solid var(--success)">
+                    <div class="card-top">
+                        <div class="card-title-group">
+                            <h2 class="card-title">BM1753</h2>
+                            <div class="card-subtitle"><i data-lucide="building"
+                                    style="width:14px; margin-right:4px;"></i> CNS</div>
+                        </div>
+                        <span class="status-pill pill-stable">Stable</span>
+                    </div>
+
+                    <div class="capacity-row">
+                        <span class="cap-chip">16TB</span>
+                        <span class="cap-chip active" style="background: var(--primary)">32TB</span>
+                    </div>
+
+                    <div class="task-list">
+                        <div class="task-item">
+                            <div class="task-header">
+                                <span class="task-name"><i data-lucide="check-circle"
+                                        style="width:14px; color:var(--success)"></i> 벤치마크 완료</span>
+                                <span style="color:var(--success)">100%</span>
+                            </div>
+                            <div class="task-desc">모든 항목 Pass</div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: 100%; background: var(--success)"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="user-info">
+                            <div class="user-avatar" style="background: #10b981">김</div>
+                            김민수
+                        </div>
+                        <div class="time-ago">
+                            <i data-lucide="clock" style="width:12px;"></i> 3시간 전
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BM1733 Card -->
+                <div class="card" style="border-top: 3px solid var(--warning)">
+                    <div class="card-top">
+                        <div class="card-title-group">
+                            <h2 class="card-title">BM1733</h2>
+                            <div class="card-subtitle"><i data-lucide="building"
+                                    style="width:14px; margin-right:4px;"></i> General</div>
+                        </div>
+                        <span class="status-pill pill-analyzing">Analyzing</span>
+                    </div>
+
+                    <div class="capacity-row">
+                        <span class="cap-chip">16TB</span>
+                        <span class="cap-chip active">32TB</span>
+                    </div>
+
+                    <div class="task-list">
+                        <div class="task-item">
+                            <div class="task-header">
+                                <span class="task-name"><i data-lucide="alert-triangle"
+                                        style="width:14px; color:var(--warning)"></i> GC Latency 분석</span>
+                                <span style="color:var(--warning)">15%</span>
+                            </div>
+                            <div class="task-desc">Qos Spike 발생 구간 추적</div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: 15%; background: var(--warning)"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="user-info">
+                            <div class="user-avatar" style="background: #8b5cf6">이</div>
+                            이도현
+                        </div>
+                        <div class="time-ago">
+                            <i data-lucide="clock" style="width:12px;"></i> 2시간 전
+                        </div>
+                    </div>
+                </div>
+                <!-- BM1763 Card -->
+                <div class="card" style="border-top: 3px solid var(--purple)">
+                    <div class="card-top">
+                        <div class="card-title-group">
+                            <h2 class="card-title">BM1763</h2>
+                            <div class="card-subtitle"><i data-lucide="building"
+                                    style="width:14px; margin-right:4px;"></i> AWS</div>
+                        </div>
+                        <span class="status-pill pill-testing">Testing</span>
+                    </div>
+
+                    <div class="capacity-row">
+                        <span class="cap-chip active" style="background: var(--purple)">64TB</span>
+                        <span class="cap-chip">128TB</span>
+                    </div>
+
+                    <div class="task-list">
+                        <div class="task-item">
+                            <div class="task-header">
+                                <span class="task-name"><i data-lucide="play"
+                                        style="width:14px; color:var(--purple)"></i> 초기 성능 평가</span>
+                                <span style="color:var(--purple)">5%</span>
+                            </div>
+                            <div class="task-desc">Pre-qualification Test</div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: 5%; background: var(--purple)"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="user-info">
+                            <div class="user-avatar" style="background: #f59e0b">최</div>
+                            최지훈
+                        </div>
+                        <div class="time-ago">
+                            <i data-lucide="clock" style="width:12px;"></i> 어제
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right System Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-card">
+                <div class="sidebar-title">
+                    <i data-lucide="bell" style="width:18px; color: #f59e0b"></i> Recent Activity
+                </div>
+                <div class="activity-feed">
+                    <div class="activity-item">
+                        <div class="activity-dot" style="background: var(--warning)"></div>
+                        <div class="activity-content">
+                            <div class="act-text"><strong>BM1743 Tesla</strong> 파워 이슈 분석 시작</div>
+                            <div class="act-time">10분 전 • 장혜진</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-dot" style="background: var(--success)"></div>
+                        <div class="activity-content">
+                            <div class="act-text"><strong>BM1753 MSFT</strong> WLG Profile 3 완료</div>
+                            <div class="act-time">1시간 전 • 박성훈</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-dot" style="background: var(--accent)"></div>
+                        <div class="activity-content">
+                            <div class="act-text"><strong>BM1733</strong> GC Latency Spike 감지</div>
+                            <div class="act-time">2시간 전 • System Bot</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-dot" style="background: var(--primary)"></div>
+                        <div class="activity-content">
+                            <div class="act-text"><strong>BM1753 CNS</strong> 벤치마크 테스트 완료</div>
+                            <div class="act-time">3시간 전 • 김민수</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-dot" style="background: var(--purple)"></div>
+                        <div class="activity-content">
+                            <div class="act-text"><strong>BM1763</strong> 신규 제품 등록</div>
+                            <div class="act-time">어제 • 최지훈</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-card">
+                <div class="sidebar-title">
+                    <i data-lucide="bar-chart-2" style="width:18px; color: var(--success)"></i> This Week Stats
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                    <span style="color: var(--text-secondary)">분석 완료</span>
+                    <span style="color: var(--success); font-weight: 700;">23건</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                    <span style="color: var(--text-secondary)">이슈 리포트</span>
+                    <span style="color: var(--accent); font-weight: 700;">5건</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                    <span style="color: var(--text-secondary)">평균 소요 시간</span>
+                    <span style="color: var(--primary); font-weight: 700;">3.2일</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

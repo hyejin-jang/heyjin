@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise SSD Analysis Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-card-hover: #1f3460;
+            --text-main: #eaeaea;
+            --text-dim: #8892a0;
+            --accent-blue: #0078d4;
+            --accent-green: #00c853;
+            --accent-orange: #ff9800;
+            --accent-red: #f44336;
+            --accent-purple: #9c27b0;
+            --border-color: #2a3f5f;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 30px;
+        }
+
+        .header-stat {
+            text-align: center;
+        }
+
+        .header-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .header-stat-label {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        /* Search Bar */
+        .search-container {
+            padding: 20px 40px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            padding: 12px 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .search-box input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .filter-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 20px 40px;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+        }
+
+        /* Product Grid */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .product-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0,120,212,0.2);
+            border-color: var(--accent-blue);
+        }
+
+        .card-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .product-name {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .product-customer {
+            font-size: 13px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-analyzing { background: rgba(255,152,0,0.2); color: var(--accent-orange); }
+        .status-stable { background: rgba(0,200,83,0.2); color: var(--accent-green); }
+        .status-critical { background: rgba(244,67,54,0.2); color: var(--accent-red); }
+        .status-testing { background: rgba(156,39,176,0.2); color: var(--accent-purple); }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .capacity-chips {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .capacity-chip {
+            background: rgba(255,255,255,0.05);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .capacity-chip.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .issue-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .issue-item:last-child {
+            border-bottom: none;
+        }
+
+        .issue-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .issue-icon.perf { background: rgba(0,120,212,0.2); }
+        .issue-icon.bug { background: rgba(244,67,54,0.2); }
+        .issue-icon.analysis { background: rgba(255,152,0,0.2); }
+
+        .issue-text {
+            flex: 1;
+        }
+
+        .issue-title {
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .issue-meta {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s;
+        }
+
+        .card-footer {
+            padding: 15px 20px;
+            background: rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sidebar-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-content {
+            padding: 15px 20px;
+        }
+
+        /* Recent Activity */
+        .activity-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-top: 5px;
+        }
+
+        .activity-text {
+            flex: 1;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .activity-time {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        /* Quick Stats */
+        .quick-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .quick-stat:last-child {
+            border-bottom: none;
+        }
+
+        .quick-stat-label {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .quick-stat-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .sidebar {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+    <div class="logo">
+        <div class="logo-icon">FTL</div>
+        <div class="logo-text">Enterprise SSD Analysis Hub</div>
+    </div>
+    <div class="header-stats">
+        <div class="header-stat">
+            <div class="header-stat-value">12</div>
+            <div class="header-stat-label">Active Products</div>
+        </div>
+        <div class="header-stat">
+            <div class="header-stat-value" style="color: var(--accent-orange)">4</div>
+            <div class="header-stat-label">Issues Analyzing</div>
+        </div>
+        <div class="header-stat">
+            <div class="header-stat-value" style="color: var(--accent-red)">2</div>
+            <div class="header-stat-label">Critical</div>
+        </div>
+        <div class="header-stat">
+            <div class="header-stat-value" style="color: var(--accent-green)">6</div>
+            <div class="header-stat-label">Stable</div>
+        </div>
+    </div>
+</header>
+
+<!-- Search & Filter -->
+<div class="search-container">
+    <div class="search-box">
+        <span>🔍</span>
+        <input type="text" placeholder="제품명, 고객사, 이슈 검색..." id="searchInput">
+    </div>
+    <button class="filter-btn active" data-filter="all">전체</button>
+    <button class="filter-btn" data-filter="analyzing">🔄 분석중</button>
+    <button class="filter-btn" data-filter="critical">🔴 Critical</button>
+    <button class="filter-btn" data-filter="stable">🟢 Stable</button>
+    <button class="filter-btn" data-filter="testing">🟣 Testing</button>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <!-- Product Grid -->
+    <div class="product-grid" id="productGrid">
+        <!-- Cards will be generated by JavaScript -->
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <!-- Recent Activity -->
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <span>🔔</span> Recent Activity
+            </div>
+            <div class="sidebar-content">
+                <div class="activity-item">
+                    <div class="activity-dot" style="background: var(--accent-orange)"></div>
+                    <div class="activity-text">
+                        <strong>BM1743</strong> Tesla 파워 이슈 분석 시작
+                        <div class="activity-time">10분 전</div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-dot" style="background: var(--accent-green)"></div>
+                    <div class="activity-text">
+                        <strong>BM1753 MSFT</strong> WLG Profile 3 완료
+                        <div class="activity-time">1시간 전</div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-dot" style="background: var(--accent-red)"></div>
+                    <div class="activity-text">
+                        <strong>BM1733</strong> GC Latency Spike 감지
+                        <div class="activity-time">2시간 전</div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-dot" style="background: var(--accent-blue)"></div>
+                    <div class="activity-text">
+                        <strong>BM1753 CNS</strong> 벤치마크 테스트 완료
+                        <div class="activity-time">3시간 전</div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-dot" style="background: var(--accent-purple)"></div>
+                    <div class="activity-text">
+                        <strong>BM1763</strong> 신규 제품 등록
+                        <div class="activity-time">어제</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <span>📊</span> This Week Stats
+            </div>
+            <div class="sidebar-content">
+                <div class="quick-stat">
+                    <span class="quick-stat-label">분석 완료</span>
+                    <span class="quick-stat-value" style="color: var(--accent-green)">23건</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-label">신규 이슈</span>
+                    <span class="quick-stat-value" style="color: var(--accent-orange)">8건</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-label">해결 완료</span>
+                    <span class="quick-stat-value" style="color: var(--accent-blue)">15건</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-label">테스트 진행</span>
+                    <span class="quick-stat-value">42회</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Capacity Distribution -->
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <span>💾</span> Capacity Distribution
+            </div>
+            <div class="sidebar-content">
+                <div class="quick-stat">
+                    <span class="quick-stat-label">16TB</span>
+                    <span class="quick-stat-value">4 제품</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-label">32TB</span>
+                    <span class="quick-stat-value">5 제품</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-label">64TB</span>
+                    <span class="quick-stat-value">2 제품</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-label">128TB</span>
+                    <span class="quick-stat-value">1 제품</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<script>
+// Product Data (Mock)
+const products = [
+    {
+        id: 'BM1743',
+        name: 'BM1743',
+        customer: 'Tesla',
+        status: 'critical',
+        statusText: 'Critical',
+        capacities: ['16TB', '32TB', '64TB'],
+        activeCapacity: '32TB',
+        issues: [
+            { type: 'bug', title: '파워 이슈 분석', meta: 'Power Loss 후 데이터 손실', progress: 35 },
+            { type: 'analysis', title: 'WAF 분석', meta: '목표: 2.0 이하', progress: 80 }
+        ],
+        lastUpdate: '10분 전',
+        assignee: '장혜진'
+    },
+    {
+        id: 'BM1753-MSFT',
+        name: 'BM1753',
+        customer: 'Microsoft',
+        status: 'analyzing',
+        statusText: 'Analyzing',
+        capacities: ['32TB', '64TB', '128TB'],
+        activeCapacity: '128TB',
+        issues: [
+            { type: 'perf', title: 'WLG 성능 평가', meta: 'Profile 0~7 진행 중 (7일 예상)', progress: 42 },
+            { type: 'analysis', title: 'Precondition', meta: '48시간 / 128TB', progress: 100 }
+        ],
+        lastUpdate: '1시간 전',
+        assignee: '장혜진'
+    },
+    {
+        id: 'BM1753-CNS',
+        name: 'BM1753',
+        customer: 'CNS',
+        status: 'stable',
+        statusText: 'Stable',
+        capacities: ['16TB', '32TB'],
+        activeCapacity: '32TB',
+        issues: [
+            { type: 'perf', title: '벤치마크 완료', meta: '모든 항목 Pass', progress: 100 }
+        ],
+        lastUpdate: '3시간 전',
+        assignee: '김민수'
+    },
+    {
+        id: 'BM1733',
+        name: 'BM1733',
+        customer: 'General',
+        status: 'analyzing',
+        statusText: 'Analyzing',
+        capacities: ['16TB', '32TB'],
+        activeCapacity: '16TB',
+        issues: [
+            { type: 'bug', title: 'GC Latency Spike', meta: 'P99 > 10ms 발생', progress: 60 },
+            { type: 'analysis', title: 'Task Profiler 분석', meta: 'FCore 런타임 확인 중', progress: 25 }
+        ],
+        lastUpdate: '2시간 전',
+        assignee: '이준호'
+    },
+    {
+        id: 'BM1763',
+        name: 'BM1763',
+        customer: 'AWS',
+        status: 'testing',
+        statusText: 'Testing',
+        capacities: ['64TB', '128TB'],
+        activeCapacity: '64TB',
+        issues: [
+            { type: 'perf', title: '초기 성능 테스트', meta: 'Seq/Rand R/W 측정', progress: 15 }
+        ],
+        lastUpdate: '어제',
+        assignee: '박소연'
+    },
+    {
+        id: 'BM1773',
+        name: 'BM1773',
+        customer: 'Google',
+        status: 'stable',
+        statusText: 'Stable',
+        capacities: ['32TB', '64TB'],
+        activeCapacity: '64TB',
+        issues: [
+            { type: 'perf', title: '양산 검증 완료', meta: '모든 스펙 충족', progress: 100 }
+        ],
+        lastUpdate: '2일 전',
+        assignee: '최영민'
+    },
+    {
+        id: 'BM1783',
+        name: 'BM1783',
+        customer: 'Meta',
+        status: 'testing',
+        statusText: 'Testing',
+        capacities: ['128TB'],
+        activeCapacity: '128TB',
+        issues: [
+            { type: 'analysis', title: '내구성 테스트', meta: 'DWPD 3.0 검증', progress: 45 },
+            { type: 'perf', title: '온도 특성 분석', meta: '고온 70°C 테스트', progress: 30 }
+        ],
+        lastUpdate: '1일 전',
+        assignee: '정다은'
+    },
+    {
+        id: 'BM1793',
+        name: 'BM1793',
+        customer: 'Alibaba',
+        status: 'critical',
+        statusText: 'Critical',
+        capacities: ['64TB'],
+        activeCapacity: '64TB',
+        issues: [
+            { type: 'bug', title: 'FW Hang 이슈', meta: '간헐적 응답 없음', progress: 20 },
+            { type: 'bug', title: 'SMART 오류', meta: 'Spare 값 이상', progress: 50 }
+        ],
+        lastUpdate: '30분 전',
+        assignee: '한지원'
+    }
+];
+
+// Render Product Cards
+function renderProducts(filter = 'all', searchTerm = '') {
+    const grid = document.getElementById('productGrid');
+    grid.innerHTML = '';
+
+    const filtered = products.filter(p => {
+        const matchFilter = filter === 'all' || p.status === filter;
+        const matchSearch = searchTerm === '' || 
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.issues.some(i => i.title.toLowerCase().includes(searchTerm.toLowerCase()));
+        return matchFilter && matchSearch;
+    });
+
+    filtered.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+            <div class="card-header">
+                <div>
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-customer">
+                        <span>🏢</span> ${product.customer}
+                    </div>
+                </div>
+                <span class="status-badge status-${product.status}">${product.statusText}</span>
+            </div>
+            <div class="card-body">
+                <div class="capacity-chips">
+                    ${product.capacities.map(cap => 
+                        `<span class="capacity-chip ${cap === product.activeCapacity ? 'active' : ''}">${cap}</span>`
+                    ).join('')}
+                </div>
+                ${product.issues.map(issue => `
+                    <div class="issue-item">
+                        <div class="issue-icon ${issue.type}">${getIssueIcon(issue.type)}</div>
+                        <div class="issue-text">
+                            <div class="issue-title">${issue.title}</div>
+                            <div class="issue-meta">${issue.meta}</div>
+                        </div>
+                        <span style="font-size: 12px; color: ${getProgressColor(issue.progress)}">${issue.progress}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${issue.progress}%; background: ${getProgressColor(issue.progress)}"></div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="card-footer">
+                <span>👤 ${product.assignee}</span>
+                <span>🕐 ${product.lastUpdate}</span>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+function getIssueIcon(type) {
+    const icons = {
+        'perf': '📈',
+        'bug': '🐛',
+        'analysis': '🔍'
+    };
+    return icons[type] || '📋';
+}
+
+function getProgressColor(progress) {
+    if (progress >= 100) return 'var(--accent-green)';
+    if (progress >= 70) return 'var(--accent-blue)';
+    if (progress >= 30) return 'var(--accent-orange)';
+    return 'var(--accent-red)';
+}
+
+// Filter Buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderProducts(btn.dataset.filter, document.getElementById('searchInput').value);
+    });
+});
+
+// Search
+document.getElementById('searchInput').addEventListener('input', (e) => {
+    const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
+    renderProducts(activeFilter, e.target.value);
+});
+
+// Initial Render
+renderProducts();
+</script>
+
+</body>
+</html>
+

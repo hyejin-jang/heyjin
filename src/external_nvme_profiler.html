@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>External NVMe Spec Profiler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0b0d10;
+            --bg-panel: #15181e;
+            --primary: #ff9900;
+            /* NVMe Orange */
+            --secondary: #0088ff;
+            /* Blue */
+            --accent: #ff3333;
+            --text-main: #ffffff;
+            --text-muted: #8b949e;
+            --border: rgba(255, 255, 255, 0.1);
+            --glass: rgba(21, 24, 30, 0.7);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Background Gradient Mesh */
+        .bg-mesh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background:
+                radial-gradient(circle at 80% 10%, rgba(255, 153, 0, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 20% 90%, rgba(0, 136, 255, 0.08) 0%, transparent 40%);
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            background: rgba(11, 13, 16, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), #ffcc00);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-family: 'JetBrains Mono', monospace;
+            color: #000;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            background: rgba(255, 153, 0, 0.1);
+            border: 1px solid rgba(255, 153, 0, 0.2);
+            color: var(--primary);
+            border-radius: 99px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        main {
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 1.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Grid Layouts */
+        .col-span-3 {
+            grid-column: span 3;
+        }
+
+        .col-span-4 {
+            grid-column: span 4;
+        }
+
+        .col-span-6 {
+            grid-column: span 6;
+        }
+
+        .col-span-8 {
+            grid-column: span 8;
+        }
+
+        .col-span-9 {
+            grid-column: span 9;
+        }
+
+        .col-span-12 {
+            grid-column: span 12;
+        }
+
+        .row-span-2 {
+            grid-row: span 2;
+        }
+
+        /* Metrics */
+        .metric-big {
+            font-size: 3rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-main);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-sub {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* Queue Visualization */
+        .queue-container {
+            display: flex;
+            gap: 4px;
+            height: 100px;
+            align-items: flex-end;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .queue-bar {
+            flex: 1;
+            background: var(--secondary);
+            opacity: 0.7;
+            border-radius: 2px 2px 0 0;
+            transition: height 0.2s;
+        }
+
+        .queue-bar.admin {
+            background: var(--primary);
+        }
+
+        /* Latency Histogram */
+        .histogram {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            height: 150px;
+            gap: 8px;
+        }
+
+        .hist-bar-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+        }
+
+        .hist-bar {
+            width: 100%;
+            background: linear-gradient(to top, var(--secondary), rgba(0, 136, 255, 0.2));
+            border-radius: 4px;
+            transition: height 0.5s ease;
+        }
+
+        .hist-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Command Table */
+        .cmd-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+        }
+
+        .cmd-table th {
+            text-align: left;
+            padding: 0.75rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .cmd-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .cmd-opcode {
+            color: var(--primary);
+        }
+
+        .cmd-lba {
+            color: var(--secondary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-mesh"></div>
+
+    <header>
+        <div class="logo">
+            <div class="logo-icon">NV</div>
+            <h1>External NVMe Spec Profiler</h1>
+        </div>
+        <div class="status-badge">
+            <div class="status-dot"></div>
+            PCIe Gen5 x4 Active
+        </div>
+    </header>
+
+    <main>
+        <!-- Key Metrics -->
+        <div class="card col-span-3">
+            <div class="card-header"><span class="card-title">Read IOPS</span></div>
+            <div class="metric-big" id="readIops">850K</div>
+            <div class="metric-sub">4K Random Read</div>
+        </div>
+        <div class="card col-span-3">
+            <div class="card-header"><span class="card-title">Write IOPS</span></div>
+            <div class="metric-big" id="writeIops">120K</div>
+            <div class="metric-sub">4K Random Write</div>
+        </div>
+        <div class="card col-span-3">
+            <div class="card-header"><span class="card-title">Bandwidth</span></div>
+            <div class="metric-big">12.4</div>
+            <div class="metric-sub">GB/s Sequential Read</div>
+        </div>
+        <div class="card col-span-3">
+            <div class="card-header"><span class="card-title">Avg Latency</span></div>
+            <div class="metric-big">45µs</div>
+            <div class="metric-sub">QD=1 Random Read</div>
+        </div>
+
+        <!-- Submission Queue Depth -->
+        <div class="card col-span-8">
+            <div class="card-header">
+                <span class="card-title">Submission Queue Depth (Real-time)</span>
+                <div class="status-badge"
+                    style="background: rgba(255,255,255,0.05); border: none; color: var(--text-muted)">SQ ID: 1</div>
+            </div>
+            <div class="queue-container" id="queueContainer">
+                <!-- JS Populated -->
+            </div>
+        </div>
+
+        <!-- Latency Distribution -->
+        <div class="card col-span-4 row-span-2">
+            <div class="card-header">
+                <span class="card-title">Latency Distribution</span>
+            </div>
+            <div class="histogram">
+                <div class="hist-bar-group">
+                    <div class="hist-bar" style="height: 20%"></div>
+                    <span class="hist-label">
+                        <10µs< /span>
+                </div>
+                <div class="hist-bar-group">
+                    <div class="hist-bar" style="height: 60%"></div>
+                    <span class="hist-label">10-50µs</span>
+                </div>
+                <div class="hist-bar-group">
+                    <div class="hist-bar" style="height: 30%"></div>
+                    <span class="hist-label">50-100µs</span>
+                </div>
+                <div class="hist-bar-group">
+                    <div class="hist-bar" style="height: 10%"></div>
+                    <span class="hist-label">>100µs</span>
+                </div>
+            </div>
+            <div style="margin-top: 2rem; color: var(--text-muted); font-size: 0.875rem;">
+                <p>99th Percentile: <strong>85µs</strong></p>
+                <p>99.9th Percentile: <strong>120µs</strong></p>
+            </div>
+        </div>
+
+        <!-- Recent Commands -->
+        <div class="card col-span-8">
+            <div class="card-header">
+                <span class="card-title">Recent NVMe Commands</span>
+            </div>
+            <table class="cmd-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Opcode</th>
+                        <th>CID</th>
+                        <th>NSID</th>
+                        <th>LBA / Size</th>
+                    </tr>
+                </thead>
+                <tbody id="cmdTableBody">
+                    <tr>
+                        <td>10:45:01.002</td>
+                        <td class="cmd-opcode">READ (02h)</td>
+                        <td>0x0045</td>
+                        <td>1</td>
+                        <td class="cmd-lba">0x1000 (4KB)</td>
+                    </tr>
+                    <tr>
+                        <td>10:45:01.005</td>
+                        <td class="cmd-opcode">WRITE (01h)</td>
+                        <td>0x0046</td>
+                        <td>1</td>
+                        <td class="cmd-lba">0x2000 (16KB)</td>
+                    </tr>
+                    <tr>
+                        <td>10:45:01.012</td>
+                        <td class="cmd-opcode">FLUSH (00h)</td>
+                        <td>0x0047</td>
+                        <td>1</td>
+                        <td class="cmd-lba">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        // Mock Data Update
+
+        // 1. Queue Depth Animation
+        const queueContainer = document.getElementById('queueContainer');
+        const barCount = 40;
+
+        // Init bars
+        for (let i = 0; i < barCount; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'queue-bar';
+            bar.style.height = '10%';
+            queueContainer.appendChild(bar);
+        }
+
+        setInterval(() => {
+            const bars = queueContainer.children;
+            for (let bar of bars) {
+                // Random height
+                const h = Math.random() * 90 + 5;
+                bar.style.height = `${h}%`;
+
+                // Randomly make some "Admin" commands (orange)
+                if (Math.random() > 0.9) {
+                    bar.classList.add('admin');
+                } else {
+                    bar.classList.remove('admin');
+                }
+            }
+        }, 100);
+
+        // 2. IOPS Updates
+        const readIopsEl = document.getElementById('readIops');
+        const writeIopsEl = document.getElementById('writeIops');
+
+        setInterval(() => {
+            const r = 800 + Math.floor(Math.random() * 100);
+            const w = 100 + Math.floor(Math.random() * 50);
+            readIopsEl.innerText = `${r}K`;
+            writeIopsEl.innerText = `${w}K`;
+        }, 1000);
+
+        // 3. Command Table Update
+        const tbody = document.getElementById('cmdTableBody');
+        const opcodes = [
+            { name: 'READ (02h)', type: 'read' },
+            { name: 'WRITE (01h)', type: 'write' },
+            { name: 'FLUSH (00h)', type: 'admin' },
+            { name: 'DSM (09h)', type: 'admin' }
+        ];
+
+        setInterval(() => {
+            const row = document.createElement('tr');
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}.${now.getMilliseconds()}`;
+            const op = opcodes[Math.floor(Math.random() * opcodes.length)];
+            const cid = '0x' + Math.floor(Math.random() * 65535).toString(16).toUpperCase().padStart(4, '0');
+            const lba = '0x' + Math.floor(Math.random() * 100000).toString(16).toUpperCase();
+
+            row.innerHTML = `
+                <td>${timeStr}</td>
+                <td class="cmd-opcode" style="color: ${op.type === 'read' ? 'var(--secondary)' : (op.type === 'write' ? 'var(--primary)' : 'var(--text-muted)')}">${op.name}</td>
+                <td>${cid}</td>
+                <td>1</td>
+                <td class="cmd-lba">${op.type === 'admin' ? '-' : lba}</td>
+            `;
+
+            tbody.insertBefore(row, tbody.firstChild);
+            if (tbody.children.length > 8) {
+                tbody.removeChild(tbody.lastElementChild);
+            }
+        }, 800);
+
+    </script>
+</body>
+
+</html>
